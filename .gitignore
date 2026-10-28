@@ -1,0 +1,58 @@
+# Python & Environments
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Jupyter Notebooks checkpoint
+.ipynb_checkpoints
+
+# Environment variables & secrets
+.env
+.env.*
+secrets.json
+
+# Geospatial & Large Data formats
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+*.tif
+*.tiff
+*.nc
+*.hdf
+*.h5
+*.zip
+*.tar.gz
+*.geoparquet
+
+# Scratch & temporary files
+scratch/
+tmp/
+*.log
+
+# IDE & Editor settings
+.vscode/
+.idea/
+*.swp
+*.swo
