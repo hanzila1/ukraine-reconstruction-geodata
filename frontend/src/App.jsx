@@ -332,7 +332,7 @@ function createInitialStyle() {
     // Satellite Hybrid Labels (Placed above district polygons so street/district names remain sharp)
     { id: 'layer-satellite-labels', type: 'raster', source: 'bm-satellite-labels', layout: { visibility: 'visible' } },
 
-    // 3. Heatmap Layer
+    // 3. Heatmap Layer (Calibrated Kernel so isolated points stay tight inside polygon borders)
     {
       id: 'damage-heat',
       type: 'heatmap',
@@ -340,19 +340,19 @@ function createInitialStyle() {
       layout: { visibility: 'none' },
       paint: {
         'heatmap-weight': 1,
-        'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 4, 0.8, 13, 2.5],
+        'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 4, 0.35, 8, 0.7, 11, 1.25, 14, 2.0],
         'heatmap-color': [
           'interpolate',
           ['linear'],
           ['heatmap-density'],
           0, 'rgba(0, 54, 78, 0)',
-          0.2, 'rgba(2, 132, 199, 0.45)',
-          0.45, 'rgba(22, 163, 74, 0.72)',
-          0.7, 'rgba(234, 179, 8, 0.88)',
-          0.9, 'rgba(239, 68, 68, 0.95)',
+          0.18, 'rgba(2, 132, 199, 0.48)',
+          0.42, 'rgba(22, 163, 74, 0.75)',
+          0.68, 'rgba(234, 179, 8, 0.9)',
+          0.88, 'rgba(239, 68, 68, 0.96)',
           1, 'rgba(254, 240, 138, 1)'
         ],
-        'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 4, 14, 10, 26, 14, 38],
+        'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 4, 8, 7, 13, 10, 19, 14, 28],
         'heatmap-opacity': 0.88
       }
     },
@@ -553,7 +553,7 @@ export default function App() {
       });
   }, []);
 
-  // Filtered Bellingcat GeoJSON & Analytics
+  // Filtered Bellingcat GeoJSON & Analytics (Strictly Clipped to Polygon Boundaries)
   const { filteredGeoJSON, stats } = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     const matched = [];
@@ -563,24 +563,29 @@ export default function App() {
     let residentialCount = 0;
     let socialInfraCount = 0;
 
-    // Optional bbox filter if a district is selected
-    const distBbox = selectedDistrict?.bbox || null;
+    const targetDistrictId = selectedDistrict?.id || null;
 
     for (const f of allFeatures) {
       const p = f.properties || {};
-      if (p.is_kharkiv) kharkivTotal++;
+      const inOblast = Boolean(p.in_kharkiv_oblast || p.is_kharkiv);
+      const inCity = Boolean(p.in_kharkiv_city || p.district_id);
 
-      if (scope === 'kharkiv' && !p.is_kharkiv) continue;
+      if (inOblast) kharkivTotal++;
+
+      // Strict Polygon Boundary Scope Filtering
+      if (targetDistrictId) {
+        if (p.district_id !== targetDistrictId) continue;
+      } else if (scope === 'kharkiv_city') {
+        if (!inCity) continue;
+      } else if (scope === 'kharkiv') {
+        if (!inOblast) continue;
+      }
+
       if (selectedSector !== 'ALL' && !(p.sectors || '').includes(selectedSector)) continue;
       if (selectedYear !== 'ALL' && !(p.date || '').startsWith(selectedYear)) continue;
-      if (distBbox) {
-        const [lon, lat] = f.geometry.coordinates;
-        if (lon < distBbox[0] || lon > distBbox[2] || lat < distBbox[1] || lat > distBbox[3]) {
-          continue;
-        }
-      }
+
       if (q) {
-        const hay = `${p.location || ''} ${p.description || ''} ${p.sectors || ''} ${p.id || ''}`.toLowerCase();
+        const hay = `${p.location || ''} ${p.description || ''} ${p.sectors || ''} ${p.district_name || ''} ${p.id || ''}`.toLowerCase();
         if (!hay.includes(q)) continue;
       }
 
@@ -621,7 +626,7 @@ export default function App() {
         total: matched.length,
         nationalTotal: allFeatures.length,
         kharkivTotal,
-        kharkivPct: allFeatures.length ? ((kharkivTotal / allFeatures.length) * 100).toFixed(1) : '31.4',
+        kharkivPct: allFeatures.length ? ((kharkivTotal / allFeatures.length) * 100).toFixed(1) : '22.1',
         residentialCount,
         socialInfraCount,
         sortedSectors,
@@ -630,18 +635,19 @@ export default function App() {
     };
   }, [allFeatures, scope, selectedSector, selectedYear, searchQuery, selectedDistrict]);
 
-  // Filtered UNOSAT Building Damage GeoJSON
+  // Filtered UNOSAT Building Damage GeoJSON (Strictly Clipped to District Polygon when Selected)
   const filteredUnosatGeoJSON = useMemo(() => {
-    const distBbox = selectedDistrict?.bbox || null;
+    const targetDistrictId = selectedDistrict?.id || null;
     const matched = unosatFeatures.filter((f) => {
-      if (selectedUnosatGrade !== 'ALL' && f.properties?.damage_grade !== selectedUnosatGrade) {
+      const p = f.properties || {};
+      if (selectedUnosatGrade !== 'ALL' && p.damage_grade !== selectedUnosatGrade) {
         return false;
       }
-      if (distBbox) {
-        const [lon, lat] = f.geometry.coordinates;
-        if (lon < distBbox[0] || lon > distBbox[2] || lat < distBbox[1] || lat > distBbox[3]) {
-          return false;
-        }
+      if (targetDistrictId) {
+        return p.district_id === targetDistrictId;
+      }
+      if (scope === 'kharkiv_city') {
+        return Boolean(p.in_kharkiv_city || p.district_id);
       }
       return true;
     });
@@ -649,7 +655,7 @@ export default function App() {
       type: 'FeatureCollection',
       features: matched
     };
-  }, [unosatFeatures, selectedUnosatGrade, selectedDistrict]);
+  }, [unosatFeatures, selectedUnosatGrade, selectedDistrict, scope]);
 
   // Highlight selected district on map
   const setDistrictHighlightOnMap = (districtNum) => {
@@ -994,6 +1000,8 @@ export default function App() {
 
     if (key === 'ukraine') {
       setScope('all');
+    } else if (key === 'kharkiv_city' || key === 'saltivka') {
+      setScope('kharkiv_city');
     } else {
       setScope('kharkiv');
     }
@@ -1242,7 +1250,13 @@ export default function App() {
                     {loading ? '...' : stats.total.toLocaleString()}
                   </div>
                   <div className="text-[10px] text-slate-500 truncate">
-                    {selectedDistrict ? selectedDistrict.short_name : scope === 'kharkiv' ? 'In Kharkiv Region' : 'All Ukraine'}
+                    {selectedDistrict
+                      ? `In ${selectedDistrict.short_name} Boundary`
+                      : scope === 'kharkiv_city'
+                      ? 'Inside Kharkiv City Boundary'
+                      : scope === 'kharkiv'
+                      ? 'Inside Kharkiv Oblast Boundary'
+                      : 'All Ukraine'}
                   </div>
                 </button>
 
@@ -1267,14 +1281,90 @@ export default function App() {
                     {filteredUnosatGeoJSON.features.length}
                   </div>
                   <div className="text-[10px] text-slate-500 truncate">
-                    {selectedDistrict ? selectedDistrict.short_name : 'VHR Satellite Assessed'}
+                    {selectedDistrict ? `In ${selectedDistrict.short_name} Boundary` : 'VHR Satellite Assessed'}
                   </div>
                 </button>
               </div>
             </div>
 
+            {/* Always-Visible Map Mode & Polygon Clip Control Bar */}
+            <div className="px-3 pt-2.5 pb-2 border-b border-slate-100 space-y-2">
+              <div className="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-xl">
+                <button
+                  onClick={() => setVizMode('clusters')}
+                  className={`flex items-center justify-center gap-1 py-1 rounded-lg text-[11px] font-semibold transition-all ${
+                    vizMode === 'clusters'
+                      ? 'bg-white text-[#00364e] shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <CircleDot className="w-3 h-3 text-[#16a34a]" />
+                  <span>Clusters</span>
+                </button>
+                <button
+                  onClick={() => setVizMode('points')}
+                  className={`flex items-center justify-center gap-1 py-1 rounded-lg text-[11px] font-semibold transition-all ${
+                    vizMode === 'points'
+                      ? 'bg-white text-[#00364e] shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <MapPin className="w-3 h-3 text-[#0284c7]" />
+                  <span>All Points</span>
+                </button>
+                <button
+                  onClick={() => setVizMode('heatmap')}
+                  className={`flex items-center justify-center gap-1 py-1 rounded-lg text-[11px] font-semibold transition-all ${
+                    vizMode === 'heatmap'
+                      ? 'bg-white text-rose-600 shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Flame className="w-3 h-3 text-amber-500" />
+                  <span>Heatmap</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-1.5">
+                <div>
+                  <label className="block text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">
+                    Polygon Boundary Clip
+                  </label>
+                  <select
+                    value={scope}
+                    onChange={(e) => {
+                      setSelectedDistrict(null);
+                      setDistrictHighlightOnMap(null);
+                      setScope(e.target.value);
+                    }}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-[11px] font-semibold text-slate-800 focus:outline-none focus:border-[#00364e]"
+                  >
+                    <option value="kharkiv">Kharkiv Oblast (554)</option>
+                    <option value="kharkiv_city">Kharkiv City (328)</option>
+                    <option value="all">All Ukraine (2,512)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">
+                    Incident Year
+                  </label>
+                  <select
+                    value={selectedYear}
+                    onChange={(e) => setSelectedYear(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-[11px] font-semibold text-slate-800 focus:outline-none focus:border-[#00364e]"
+                  >
+                    <option value="ALL">All Years (2022–25)</option>
+                    <option value="2022">2022</option>
+                    <option value="2023">2023</option>
+                    <option value="2024">2024</option>
+                    <option value="2025">2025</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
             {/* 3-Tab Switcher inside Sidebar: Districts (9) | Sectors | UNOSAT */}
-            <div className="grid grid-cols-3 bg-slate-100 p-1 mx-3 mt-2.5 rounded-xl border border-slate-200 text-[11px] font-bold">
+            <div className="grid grid-cols-3 bg-slate-100 p-1 mx-3 mt-2 rounded-xl border border-slate-200 text-[11px] font-bold">
               <button
                 onClick={() => setSidebarTab('districts')}
                 className={`py-1.5 rounded-lg transition-all flex items-center justify-center gap-1 ${
@@ -1398,76 +1488,7 @@ export default function App() {
             {/* TAB 2: BELLINGCAT CIVILIAN INCIDENTS & SECTORS */}
             {sidebarTab === 'incidents' && (
               <>
-                <div className="p-3 border-b border-slate-100 space-y-2.5">
-                  <div className="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-xl">
-                    <button
-                      onClick={() => setVizMode('clusters')}
-                      className={`flex items-center justify-center gap-1 py-1 rounded-lg text-[11px] font-semibold transition-all ${
-                        vizMode === 'clusters'
-                          ? 'bg-white text-[#00364e] shadow-sm'
-                          : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      <CircleDot className="w-3 h-3 text-[#16a34a]" />
-                      <span>Clusters</span>
-                    </button>
-                    <button
-                      onClick={() => setVizMode('points')}
-                      className={`flex items-center justify-center gap-1 py-1 rounded-lg text-[11px] font-semibold transition-all ${
-                        vizMode === 'points'
-                          ? 'bg-white text-[#00364e] shadow-sm'
-                          : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      <MapPin className="w-3 h-3 text-[#0284c7]" />
-                      <span>All Points</span>
-                    </button>
-                    <button
-                      onClick={() => setVizMode('heatmap')}
-                      className={`flex items-center justify-center gap-1 py-1 rounded-lg text-[11px] font-semibold transition-all ${
-                        vizMode === 'heatmap'
-                          ? 'bg-white text-rose-600 shadow-sm'
-                          : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      <Flame className="w-3 h-3 text-amber-500" />
-                      <span>Heatmap</span>
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 mb-0.5">
-                        Study Area
-                      </label>
-                      <select
-                        value={scope}
-                        onChange={(e) => setScope(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-medium text-slate-800 focus:outline-none focus:border-[#00364e]"
-                      >
-                        <option value="kharkiv">Kharkiv Region (789)</option>
-                        <option value="all">All Ukraine (2,512)</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 mb-0.5">
-                        Incident Year
-                      </label>
-                      <select
-                        value={selectedYear}
-                        onChange={(e) => setSelectedYear(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-medium text-slate-800 focus:outline-none focus:border-[#00364e]"
-                      >
-                        <option value="ALL">All Years (2022–25)</option>
-                        <option value="2022">2022</option>
-                        <option value="2023">2023</option>
-                        <option value="2024">2024</option>
-                        <option value="2025">2025</option>
-                      </select>
-                    </div>
-                  </div>
-
+                <div className="p-3 border-b border-slate-100">
                   <div className="relative">
                     <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
                     <input

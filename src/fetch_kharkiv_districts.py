@@ -243,15 +243,90 @@ def main():
     # Sort districts by total_burden descending
     district_features.sort(key=lambda x: x["properties"]["total_burden"], reverse=True)
 
-    # Save GeoJSONs to both data/processed and frontend/public/data
+    # 4. Strictly tag every Bellingcat & UNOSAT feature using exact Point-in-Polygon (PIP)
+    #    against Kharkiv Oblast, Kharkiv City, and the 9 Urban Districts (Raions)
+    oblast_geom = main_features[0]["geometry"] if main_features else None
+    city_geom = main_features[1]["geometry"] if len(main_features) > 1 else None
+
+    strict_kharkiv_bellingcat = []
+    for bf in bellingcat_feats:
+        lon, lat = bf["geometry"]["coordinates"]
+        d_id = ""
+        d_name = ""
+        for df in district_features:
+            dbbox = df["properties"]["bbox"]
+            if dbbox[0] <= lon <= dbbox[2] and dbbox[1] <= lat <= dbbox[3]:
+                if point_in_geometry(lon, lat, df["geometry"]):
+                    d_id = df["properties"]["id"]
+                    d_name = df["properties"]["name_en"]
+                    break
+
+        in_city = bool(d_id) or (city_geom is not None and point_in_geometry(lon, lat, city_geom))
+        in_oblast = in_city or (oblast_geom is not None and point_in_geometry(lon, lat, oblast_geom))
+
+        bf["properties"]["is_kharkiv"] = bool(in_oblast)
+        bf["properties"]["in_kharkiv_oblast"] = bool(in_oblast)
+        bf["properties"]["in_kharkiv_city"] = bool(in_city)
+        bf["properties"]["district_id"] = d_id
+        bf["properties"]["district_name"] = d_name
+
+        if in_oblast:
+            strict_kharkiv_bellingcat.append(bf)
+
+    for uf in unosat_feats:
+        lon, lat = uf["geometry"]["coordinates"]
+        d_id = ""
+        d_name = ""
+        for df in district_features:
+            dbbox = df["properties"]["bbox"]
+            if dbbox[0] <= lon <= dbbox[2] and dbbox[1] <= lat <= dbbox[3]:
+                if point_in_geometry(lon, lat, df["geometry"]):
+                    d_id = df["properties"]["id"]
+                    d_name = df["properties"]["name_en"]
+                    break
+
+        in_city = bool(d_id) or (city_geom is not None and point_in_geometry(lon, lat, city_geom))
+        in_oblast = in_city or (oblast_geom is not None and point_in_geometry(lon, lat, oblast_geom))
+
+        uf["properties"]["in_kharkiv_oblast"] = bool(in_oblast)
+        uf["properties"]["in_kharkiv_city"] = bool(in_city)
+        uf["properties"]["district_id"] = d_id
+        uf["properties"]["district_name"] = d_name
+
+    # Update Kharkiv Oblast & City counts in main_features properties
+    if len(main_features) >= 1:
+        main_features[0]["properties"]["bellingcat_count"] = len(strict_kharkiv_bellingcat)
+        main_features[0]["properties"]["unosat_count"] = len(unosat_feats)
+    if len(main_features) >= 2:
+        main_features[1]["properties"]["bellingcat_count"] = sum(
+            1 for bf in bellingcat_feats if bf["properties"].get("in_kharkiv_city")
+        )
+        main_features[1]["properties"]["unosat_count"] = sum(
+            1 for uf in unosat_feats if uf["properties"].get("in_kharkiv_city")
+        )
+
+    # Save GeoJSONs to both data/processed, data/samples, and frontend/public/data
     for folder in [Path("data/processed"), Path("frontend/public/data")]:
         folder.mkdir(parents=True, exist_ok=True)
         with open(folder / "kharkiv_main_boundaries.geojson", "w", encoding="utf-8") as f:
             json.dump({"type": "FeatureCollection", "features": main_features}, f, ensure_ascii=False)
         with open(folder / "kharkiv_urban_districts.geojson", "w", encoding="utf-8") as f:
             json.dump({"type": "FeatureCollection", "features": district_features}, f, ensure_ascii=False)
+        with open(folder / "unosat_kharkiv_building_damage.geojson", "w", encoding="utf-8") as f:
+            json.dump({"type": "FeatureCollection", "features": unosat_feats}, f, ensure_ascii=False)
 
-    print("Saved kharkiv_main_boundaries.geojson and kharkiv_urban_districts.geojson!")
+    with open("frontend/public/data/ukraine_civilian_damage.geojson", "w", encoding="utf-8") as f:
+        json.dump({"type": "FeatureCollection", "features": bellingcat_feats}, f, ensure_ascii=False)
+
+    with open("data/samples/ukraine_civilian_damage_overview.geojson", "w", encoding="utf-8") as f:
+        json.dump({"type": "FeatureCollection", "features": bellingcat_feats}, f, ensure_ascii=False)
+
+    with open("data/samples/kharkiv_civilian_damage.geojson", "w", encoding="utf-8") as f:
+        json.dump({"type": "FeatureCollection", "features": strict_kharkiv_bellingcat}, f, ensure_ascii=False, indent=2)
+
+    print(
+        f"Saved strictly polygon-clipped datasets! Kharkiv Oblast incidents = {len(strict_kharkiv_bellingcat)} (0 out-of-boundary points)."
+    )
 
 
 if __name__ == "__main__":
