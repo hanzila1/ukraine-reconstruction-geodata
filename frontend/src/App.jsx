@@ -54,24 +54,22 @@ const UNOSAT_GRADES = {
 const BASEMAPS = {
   satellite: {
     name: 'Satellite Hybrid',
-    subtitle: 'Esri VHR Imagery + Labels',
+    subtitle: 'Esri VHR Imagery + Place Labels',
     tiles: [
       'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
     ],
     overlayLabels: [
-      'https://a.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}@2x.png'
+      'https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}'
     ],
     attribution: 'Tiles © Esri — Maxar, Earthstar Geographics'
   },
   voyager: {
     name: 'Terrain & Streets',
-    subtitle: 'Daylight Cartography',
+    subtitle: 'Esri World Street Cartography',
     tiles: [
-      'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
-      'https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
-      'https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png'
+      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}'
     ],
-    attribution: '© OpenStreetMap contributors © CARTO'
+    attribution: 'Tiles © Esri — DeLorme, NAVTEQ, USGS'
   },
   osm: {
     name: 'OpenStreetMap',
@@ -84,21 +82,19 @@ const BASEMAPS = {
   },
   positron: {
     name: 'Clean Light GIS',
-    subtitle: 'Carto Positron Light',
+    subtitle: 'Esri Light Gray Canvas',
     tiles: [
-      'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
-      'https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png'
+      'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}'
     ],
-    attribution: '© OpenStreetMap contributors © CARTO'
+    attribution: 'Tiles © Esri — HERE, Garmin, OpenStreetMap'
   },
   topo: {
     name: 'Topographic Relief',
-    subtitle: 'Elevation Contours',
+    subtitle: 'Esri World Topographic Map',
     tiles: [
-      'https://a.tile.opentopomap.org/{z}/{x}/{y}.png',
-      'https://b.tile.opentopomap.org/{z}/{x}/{y}.png'
+      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}'
     ],
-    attribution: '© OpenTopoMap (CC-BY-SA)'
+    attribution: 'Tiles © Esri — USGS, NOAA'
   }
 };
 
@@ -508,10 +504,11 @@ function createInitialStyle() {
       layout: { visibility: 'visible' },
       paint: {
         'circle-color': ['get', 'damage_color'],
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 8, 2, 11.5, 3.2, 14, 5.5, 17, 9.5],
-        'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 8, 0.8, 12, 1.5, 15, 2.2],
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 8, 1.8, 11.5, 3.2, 14, 5.5, 17, 9.5],
+        'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 8, 0.5, 12, 1.5, 15, 2.2],
         'circle-stroke-color': '#090d16',
-        'circle-opacity': 0.96
+        'circle-opacity': ['interpolate', ['linear'], ['zoom'], 6.5, 0.0, 9.2, 0.65, 11, 0.96],
+        'circle-stroke-opacity': ['interpolate', ['linear'], ['zoom'], 6.5, 0.0, 9.2, 0.65, 11, 0.96]
       }
     }
   ];
@@ -955,7 +952,8 @@ export default function App() {
       };
 
       const showBellingcat = layerVisibility === 'both' || layerVisibility === 'bellingcat';
-      const showUnosat = layerVisibility === 'both' || layerVisibility === 'unosat';
+      const showUnosat =
+        layerVisibility === 'unosat' || (layerVisibility === 'both' && vizMode !== 'heatmap');
 
       setVis('damage-heat', showBellingcat && vizMode === 'heatmap');
       setVis('cluster-halo', showBellingcat && vizMode === 'clusters');
@@ -1093,16 +1091,16 @@ export default function App() {
             Z+
           </div>
 
-          <div className="truncate">
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="font-bold text-white text-sm tracking-tight flex items-center">
+              <span className="font-bold text-white text-sm tracking-tight flex items-center shrink-0">
                 geoInnovation:lab<span className="text-[#22c55e] font-black ml-0.5">+</span>
               </span>
-              <span className="hidden sm:inline-block text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#16a34a]/25 text-[#4ade80] border border-[#16a34a]/40 uppercase tracking-wide">
+              <span className="hidden sm:inline-block shrink-0 whitespace-nowrap text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#16a34a]/25 text-[#4ade80] border border-[#16a34a]/40 uppercase tracking-wide">
                 Kharkiv Recovery
               </span>
             </div>
-            <p className="text-[10px] text-slate-300 truncate hidden md:block">
+            <p className="text-[10px] text-slate-300 truncate hidden md:block max-w-[330px]">
               Z_GIS University of Salzburg × O.M. Beketov National University of Urban Economy
             </p>
           </div>
@@ -1367,7 +1365,7 @@ export default function App() {
                   >
                     <option value="kharkiv">Kharkiv Oblast (554)</option>
                     <option value="kharkiv_city">Kharkiv City (328)</option>
-                    <option value="all">All Ukraine (2,512)</option>
+                    <option value="all">All Ukraine (2,392)</option>
                   </select>
                 </div>
                 <div>
