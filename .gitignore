@@ -24,6 +24,12 @@ wheels/
 .installed.cfg
 *.egg
 
+# Node & Frontend
+frontend/node_modules/
+node_modules/
+frontend/dist/
+frontend/.vite/
+
 # Jupyter Notebooks checkpoint
 .ipynb_checkpoints
 
@@ -32,19 +38,10 @@ wheels/
 .env.*
 secrets.json
 
-# Geospatial & Large Data formats
+# Large Raw Geodata
 data/raw/*
 !data/raw/.gitkeep
-data/processed/*
-!data/processed/.gitkeep
-*.tif
-*.tiff
-*.nc
-*.hdf
-*.h5
-*.zip
-*.tar.gz
-*.geoparquet
+data/raw/unosat_kharkiv/
 
 # Scratch & temporary files
 scratch/
