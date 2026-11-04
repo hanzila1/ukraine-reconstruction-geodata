@@ -9,8 +9,6 @@ import {
   CircleDot,
   Calendar,
   ExternalLink,
-  ChevronLeft,
-  ChevronRight,
   ChevronDown,
   ChevronUp,
   RotateCcw,
@@ -19,6 +17,8 @@ import {
   Check,
   Crosshair,
   SlidersHorizontal,
+  Map as MapIcon,
+  ShieldAlert,
   X
 } from 'lucide-react';
 
@@ -113,20 +113,20 @@ const CAMERA_PRESETS = {
   kharkiv_oblast: {
     label: 'Kharkiv Oblast',
     shortLabel: 'Oblast',
-    center: [36.55, 49.65],
-    zoom: 7.7,
+    center: [36.55, 49.55],
+    zoom: 7.4,
     pitch: 0
   },
   kharkiv_city: {
-    label: 'Kharkiv Urban Core',
-    shortLabel: 'Urban Core',
-    center: [36.265, 50.005],
-    zoom: 11.4,
-    pitch: 15
+    label: 'Kharkiv Districts',
+    shortLabel: 'City Districts',
+    center: [36.265, 49.995],
+    zoom: 11.1,
+    pitch: 12
   },
   saltivka: {
-    label: 'North Saltivka Hotspot',
-    shortLabel: 'North Saltivka',
+    label: 'North Saltivka',
+    shortLabel: 'Saltivka',
     center: [36.352, 50.041],
     zoom: 14.1,
     pitch: 28
@@ -187,6 +187,16 @@ function createInitialStyle() {
       tileSize: 256,
       attribution: BASEMAPS.topo.attribution
     },
+    // Administrative Boundaries
+    'main-boundaries': {
+      type: 'geojson',
+      data: '/data/kharkiv_main_boundaries.geojson'
+    },
+    'urban-districts': {
+      type: 'geojson',
+      data: '/data/kharkiv_urban_districts.geojson'
+    },
+    // Damage Datasets
     'damage-clustered': {
       type: 'geojson',
       data: '/data/ukraine_civilian_damage.geojson',
@@ -207,13 +217,122 @@ function createInitialStyle() {
   const layers = [
     // 1. Basemap Raster Layers (Satellite Hybrid Default)
     { id: 'layer-satellite', type: 'raster', source: 'bm-satellite', layout: { visibility: 'visible' } },
-    { id: 'layer-satellite-labels', type: 'raster', source: 'bm-satellite-labels', layout: { visibility: 'visible' } },
     { id: 'layer-voyager', type: 'raster', source: 'bm-voyager', layout: { visibility: 'none' } },
     { id: 'layer-osm', type: 'raster', source: 'bm-osm', layout: { visibility: 'none' } },
     { id: 'layer-positron', type: 'raster', source: 'bm-positron', layout: { visibility: 'none' } },
     { id: 'layer-topo', type: 'raster', source: 'bm-topo', layout: { visibility: 'none' } },
 
-    // 2. Heatmap Layer
+    // 2. ADMINISTRATIVE BOUNDARIES (Oblast, City Municipality, and 9 Urban Districts)
+    // 2a. Kharkiv Oblast Subtle Fill & Outer Dashed Perimeter
+    {
+      id: 'oblast-fill',
+      type: 'fill',
+      source: 'main-boundaries',
+      filter: ['==', ['get', 'boundary_type'], 'oblast'],
+      maxzoom: 9.5,
+      paint: {
+        'fill-color': '#22c55e',
+        'fill-opacity': 0.06
+      }
+    },
+    {
+      id: 'oblast-outline-glow',
+      type: 'line',
+      source: 'main-boundaries',
+      filter: ['==', ['get', 'boundary_type'], 'oblast'],
+      paint: {
+        'line-color': '#00364e',
+        'line-width': 5,
+        'line-opacity': 0.65
+      }
+    },
+    {
+      id: 'oblast-outline',
+      type: 'line',
+      source: 'main-boundaries',
+      filter: ['==', ['get', 'boundary_type'], 'oblast'],
+      paint: {
+        'line-color': '#22c55e',
+        'line-width': 2.5,
+        'line-dasharray': [3, 2],
+        'line-opacity': 0.95
+      }
+    },
+
+    // 2b. 9 Kharkiv City Urban Districts (Interactive Choropleth + Crisp Borders)
+    {
+      id: 'districts-fill',
+      type: 'fill',
+      source: 'urban-districts',
+      paint: {
+        'fill-color': ['get', 'fill_color'],
+        'fill-opacity': [
+          'case',
+          ['boolean', ['feature-state', 'hover'], false],
+          0.34,
+          ['boolean', ['feature-state', 'selected'], false],
+          0.38,
+          0.16
+        ]
+      }
+    },
+    {
+      id: 'districts-outline-casing',
+      type: 'line',
+      source: 'urban-districts',
+      paint: {
+        'line-color': '#001f2e',
+        'line-width': [
+          'case',
+          ['boolean', ['feature-state', 'selected'], false],
+          5,
+          3
+        ],
+        'line-opacity': 0.8
+      }
+    },
+    {
+      id: 'districts-outline',
+      type: 'line',
+      source: 'urban-districts',
+      paint: {
+        'line-color': [
+          'case',
+          ['boolean', ['feature-state', 'selected'], false],
+          '#4ade80',
+          ['boolean', ['feature-state', 'hover'], false],
+          '#38bdf8',
+          '#e2e8f0'
+        ],
+        'line-width': [
+          'case',
+          ['boolean', ['feature-state', 'selected'], false],
+          3,
+          ['boolean', ['feature-state', 'hover'], false],
+          2.5,
+          1.4
+        ],
+        'line-opacity': 0.95
+      }
+    },
+
+    // 2c. Main Kharkiv City Outer Municipal Ring
+    {
+      id: 'city-outline',
+      type: 'line',
+      source: 'main-boundaries',
+      filter: ['==', ['get', 'boundary_type'], 'city'],
+      paint: {
+        'line-color': '#22c55e',
+        'line-width': 2.5,
+        'line-opacity': 0.9
+      }
+    },
+
+    // Satellite Hybrid Labels (Placed above district polygons so street/district names remain sharp)
+    { id: 'layer-satellite-labels', type: 'raster', source: 'bm-satellite-labels', layout: { visibility: 'visible' } },
+
+    // 3. Heatmap Layer
     {
       id: 'damage-heat',
       type: 'heatmap',
@@ -238,7 +357,7 @@ function createInitialStyle() {
       }
     },
 
-    // 3. Bellingcat Incidents: Proportional Lab-Navy Cluster Halo & Circles
+    // 4. Bellingcat Incidents: Proportional Lab-Navy Cluster Halo & Circles
     {
       id: 'cluster-halo',
       type: 'circle',
@@ -300,7 +419,7 @@ function createInitialStyle() {
       }
     },
 
-    // 4. Bellingcat Individual Unclustered Points (White-Bordered Soft Halo Circles)
+    // 5. Bellingcat Individual Unclustered Points (White-Bordered Soft Halo Circles)
     {
       id: 'unclustered-point-halo',
       type: 'circle',
@@ -328,7 +447,7 @@ function createInitialStyle() {
       }
     },
 
-    // 5. Bellingcat All Points Direct (In 'points' view mode)
+    // 6. Bellingcat All Points Direct (In 'points' view mode)
     {
       id: 'all-points-direct',
       type: 'circle',
@@ -343,8 +462,7 @@ function createInitialStyle() {
       }
     },
 
-    // 6. PILLAR 2: UNOSAT BUILDING-LEVEL DAMAGE
-    // Cleanly scaled by zoom so they don't clump at city zoom, and expand into target rings at rooftop zoom
+    // 7. PILLAR 2: UNOSAT BUILDING-LEVEL DAMAGE
     {
       id: 'unosat-buildings-target',
       type: 'circle',
@@ -386,14 +504,17 @@ export default function App() {
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
   const mapLoadedRef = useRef(false);
+  const hoveredDistrictIdRef = useRef(null);
+  const selectedDistrictNumRef = useRef(null);
 
   const [allFeatures, setAllFeatures] = useState([]);
   const [unosatFeatures, setUnosatFeatures] = useState([]);
+  const [districtsList, setDistrictsList] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Layout Dock States (Zero Overlap Flex Architecture)
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [sidebarTab, setSidebarTab] = useState('incidents'); // 'incidents' | 'unosat'
+  const [sidebarTab, setSidebarTab] = useState('districts'); // 'districts' | 'incidents' | 'unosat'
   const [timelineOpen, setTimelineOpen] = useState(true);
   const [basemapOpen, setBasemapOpen] = useState(false);
   const [legendOpen, setLegendOpen] = useState(true);
@@ -401,25 +522,29 @@ export default function App() {
   // Map & Filter States
   const [activePreset, setActivePreset] = useState('kharkiv_city');
   const [basemap, setBasemap] = useState('satellite');
+  const [boundaryMode, setBoundaryMode] = useState('choropleth'); // 'choropleth' | 'outlines' | 'off'
   const [layerVisibility, setLayerVisibility] = useState('both'); // 'both' | 'bellingcat' | 'unosat'
-  const [scope, setScope] = useState('kharkiv'); // 'all' or 'kharkiv'
+  const [scope, setScope] = useState('kharkiv');
   const [selectedSector, setSelectedSector] = useState('ALL');
   const [selectedUnosatGrade, setSelectedUnosatGrade] = useState('ALL');
+  const [selectedDistrict, setSelectedDistrict] = useState(null);
   const [selectedYear, setSelectedYear] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
-  const [vizMode, setVizMode] = useState('clusters'); // 'clusters' | 'points' | 'heatmap'
+  const [vizMode, setVizMode] = useState('clusters');
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [hoverInfo, setHoverInfo] = useState(null);
 
-  // Fetch Both Datasets
+  // Fetch All Datasets
   useEffect(() => {
     Promise.all([
       fetch('/data/ukraine_civilian_damage.geojson').then((r) => r.json()),
-      fetch('/data/unosat_kharkiv_building_damage.geojson').then((r) => r.json())
+      fetch('/data/unosat_kharkiv_building_damage.geojson').then((r) => r.json()),
+      fetch('/data/kharkiv_urban_districts.geojson').then((r) => r.json())
     ])
-      .then(([ukrData, unosatData]) => {
+      .then(([ukrData, unosatData, distData]) => {
         setAllFeatures(ukrData.features || []);
         setUnosatFeatures(unosatData.features || []);
+        setDistrictsList(distData.features || []);
         setLoading(false);
       })
       .catch((err) => {
@@ -438,6 +563,9 @@ export default function App() {
     let residentialCount = 0;
     let socialInfraCount = 0;
 
+    // Optional bbox filter if a district is selected
+    const distBbox = selectedDistrict?.bbox || null;
+
     for (const f of allFeatures) {
       const p = f.properties || {};
       if (p.is_kharkiv) kharkivTotal++;
@@ -445,6 +573,12 @@ export default function App() {
       if (scope === 'kharkiv' && !p.is_kharkiv) continue;
       if (selectedSector !== 'ALL' && !(p.sectors || '').includes(selectedSector)) continue;
       if (selectedYear !== 'ALL' && !(p.date || '').startsWith(selectedYear)) continue;
+      if (distBbox) {
+        const [lon, lat] = f.geometry.coordinates;
+        if (lon < distBbox[0] || lon > distBbox[2] || lat < distBbox[1] || lat > distBbox[3]) {
+          continue;
+        }
+      }
       if (q) {
         const hay = `${p.location || ''} ${p.description || ''} ${p.sectors || ''} ${p.id || ''}`.toLowerCase();
         if (!hay.includes(q)) continue;
@@ -494,19 +628,83 @@ export default function App() {
         monthsList
       }
     };
-  }, [allFeatures, scope, selectedSector, selectedYear, searchQuery]);
+  }, [allFeatures, scope, selectedSector, selectedYear, searchQuery, selectedDistrict]);
 
   // Filtered UNOSAT Building Damage GeoJSON
   const filteredUnosatGeoJSON = useMemo(() => {
+    const distBbox = selectedDistrict?.bbox || null;
     const matched = unosatFeatures.filter((f) => {
-      if (selectedUnosatGrade === 'ALL') return true;
-      return f.properties?.damage_grade === selectedUnosatGrade;
+      if (selectedUnosatGrade !== 'ALL' && f.properties?.damage_grade !== selectedUnosatGrade) {
+        return false;
+      }
+      if (distBbox) {
+        const [lon, lat] = f.geometry.coordinates;
+        if (lon < distBbox[0] || lon > distBbox[2] || lat < distBbox[1] || lat > distBbox[3]) {
+          return false;
+        }
+      }
+      return true;
     });
     return {
       type: 'FeatureCollection',
       features: matched
     };
-  }, [unosatFeatures, selectedUnosatGrade]);
+  }, [unosatFeatures, selectedUnosatGrade, selectedDistrict]);
+
+  // Highlight selected district on map
+  const setDistrictHighlightOnMap = (districtNum) => {
+    const map = mapRef.current;
+    if (!map || !mapLoadedRef.current) return;
+
+    if (selectedDistrictNumRef.current !== null) {
+      map.setFeatureState(
+        { source: 'urban-districts', id: selectedDistrictNumRef.current },
+        { selected: false }
+      );
+    }
+    if (districtNum !== null) {
+      map.setFeatureState(
+        { source: 'urban-districts', id: districtNum },
+        { selected: true }
+      );
+    }
+    selectedDistrictNumRef.current = districtNum;
+  };
+
+  // Select a District from Sidebar or Map Click
+  const handleSelectDistrict = (distProps) => {
+    if (!distProps) {
+      setSelectedDistrict(null);
+      setDistrictHighlightOnMap(null);
+      return;
+    }
+
+    // Toggle off if clicking same district
+    if (selectedDistrict && selectedDistrict.id === distProps.id) {
+      setSelectedDistrict(null);
+      setDistrictHighlightOnMap(null);
+      return;
+    }
+
+    const parsedBbox =
+      typeof distProps.bbox === 'string' ? JSON.parse(distProps.bbox) : distProps.bbox;
+    const normalized = { ...distProps, bbox: parsedBbox };
+
+    setSelectedDistrict(normalized);
+    setSelectedEvent(null);
+    setDistrictHighlightOnMap(distProps.district_num);
+
+    const map = mapRef.current;
+    if (map && parsedBbox && parsedBbox.length === 4) {
+      map.fitBounds(
+        [
+          [parsedBbox[0], parsedBbox[1]],
+          [parsedBbox[2], parsedBbox[3]]
+        ],
+        { padding: 65, duration: 1100, pitch: 18 }
+      );
+    }
+  };
 
   // Initialize MapLibre Map once
   useEffect(() => {
@@ -526,6 +724,62 @@ export default function App() {
 
     map.on('load', () => {
       mapLoadedRef.current = true;
+    });
+
+    // Hover & Click on Urban Districts Polygons
+    map.on('mousemove', 'districts-fill', (e) => {
+      if (!e.features || !e.features.length) return;
+
+      // Check if cursor is over a point/cluster first so point tooltips take priority
+      const topPoint = map.queryRenderedFeatures(e.point, {
+        layers: ['clusters', 'unclustered-point', 'all-points-direct', 'unosat-buildings']
+      });
+      if (topPoint.length > 0) return;
+
+      map.getCanvas().style.cursor = 'pointer';
+      const feat = e.features[0];
+      if (hoveredDistrictIdRef.current !== null && hoveredDistrictIdRef.current !== feat.id) {
+        map.setFeatureState(
+          { source: 'urban-districts', id: hoveredDistrictIdRef.current },
+          { hover: false }
+        );
+      }
+      hoveredDistrictIdRef.current = feat.id;
+      map.setFeatureState({ source: 'urban-districts', id: feat.id }, { hover: true });
+
+      const p = feat.properties;
+      setHoverInfo({
+        x: e.point.x,
+        y: e.point.y,
+        isDistrict: true,
+        title: `${p.name_en} (${p.name_uk})`,
+        subtitle: `${p.bellingcat_count} Civilian Incidents • ${p.unosat_count} UNOSAT Damaged Buildings`,
+        color: p.fill_color || '#22c55e'
+      });
+    });
+
+    map.on('mouseleave', 'districts-fill', () => {
+      if (hoveredDistrictIdRef.current !== null) {
+        map.setFeatureState(
+          { source: 'urban-districts', id: hoveredDistrictIdRef.current },
+          { hover: false }
+        );
+      }
+      hoveredDistrictIdRef.current = null;
+      map.getCanvas().style.cursor = '';
+      setHoverInfo(null);
+    });
+
+    map.on('click', 'districts-fill', (e) => {
+      // Do not trigger district click if user clicked directly on an incident/building dot
+      const topPoint = map.queryRenderedFeatures(e.point, {
+        layers: ['clusters', 'unclustered-point', 'all-points-direct', 'unosat-buildings']
+      });
+      if (topPoint.length > 0) return;
+
+      if (!e.features || !e.features.length) return;
+      const p = e.features[0].properties;
+      handleSelectDistrict(p);
     });
 
     // Click cluster to zoom in
@@ -570,7 +824,7 @@ export default function App() {
       map.easeTo({ center: coords, duration: 450 });
     });
 
-    // Live Hover Tooltip
+    // Live Hover Tooltip for Points
     const interactiveLayers = ['unclustered-point', 'all-points-direct', 'unosat-buildings'];
     interactiveLayers.forEach((layerId) => {
       map.on('mousemove', layerId, (e) => {
@@ -658,7 +912,7 @@ export default function App() {
     }
   }, [filteredUnosatGeoJSON, loading]);
 
-  // Update layer visibilities when vizMode or layerVisibility changes
+  // Update layer visibilities when vizMode, layerVisibility, or boundaryMode changes
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -683,6 +937,18 @@ export default function App() {
 
       setVis('unosat-buildings-target', showUnosat);
       setVis('unosat-buildings', showUnosat);
+
+      // Administrative Boundaries Visibility
+      const showOutlines = boundaryMode === 'choropleth' || boundaryMode === 'outlines';
+      const showFill = boundaryMode === 'choropleth';
+
+      setVis('oblast-fill', showFill);
+      setVis('oblast-outline-glow', showOutlines);
+      setVis('oblast-outline', showOutlines);
+      setVis('city-outline', showOutlines);
+      setVis('districts-fill', showFill);
+      setVis('districts-outline-casing', showOutlines);
+      setVis('districts-outline', showOutlines);
     };
 
     if (mapLoadedRef.current) {
@@ -690,7 +956,7 @@ export default function App() {
     } else {
       map.once('load', applyVis);
     }
-  }, [vizMode, layerVisibility]);
+  }, [vizMode, layerVisibility, boundaryMode]);
 
   // Switch Basemap instantaneously
   const handleBasemapChange = (newKey) => {
@@ -720,6 +986,9 @@ export default function App() {
   // Camera Preset FlyTo
   const handlePresetClick = (key) => {
     setActivePreset(key);
+    setSelectedDistrict(null);
+    setDistrictHighlightOnMap(null);
+
     const preset = CAMERA_PRESETS[key];
     if (!preset || !mapRef.current) return;
 
@@ -731,6 +1000,8 @@ export default function App() {
 
     if (key === 'saltivka') {
       setSidebarTab('unosat');
+    } else if (key === 'kharkiv_city') {
+      setSidebarTab('districts');
     }
 
     mapRef.current.flyTo({
@@ -806,7 +1077,7 @@ export default function App() {
         {/* Center: Region Quick-Zoom Pills */}
         <div className="flex items-center gap-1 bg-[#001f2e]/80 p-1 rounded-xl border border-[#004b6b]">
           {Object.entries(CAMERA_PRESETS).map(([key, preset]) => {
-            const isActive = activePreset === key;
+            const isActive = activePreset === key && !selectedDistrict;
             return (
               <button
                 key={key}
@@ -824,8 +1095,32 @@ export default function App() {
           })}
         </div>
 
-        {/* Right: Layer Disambiguation Switcher, Basemap Menu & Export */}
+        {/* Right: District Boundary Toggle, Layer Disambiguation, Basemap & Export */}
         <div className="flex items-center gap-2 shrink-0">
+          {/* District Boundary Style Cycle Pill */}
+          <button
+            onClick={() => {
+              const next =
+                boundaryMode === 'choropleth'
+                  ? 'outlines'
+                  : boundaryMode === 'outlines'
+                  ? 'off'
+                  : 'choropleth';
+              setBoundaryMode(next);
+            }}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+              boundaryMode !== 'off'
+                ? 'bg-[#00364e] text-[#4ade80] border-[#22c55e]/50'
+                : 'bg-[#001f2e] text-slate-400 border-[#004b6b]'
+            }`}
+            title="Click to cycle District Boundaries: Choropleth -> Outlines Only -> Off"
+          >
+            <MapIcon className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">
+              Districts: {boundaryMode === 'choropleth' ? 'Choropleth' : boundaryMode === 'outlines' ? 'Outlines' : 'Off'}
+            </span>
+          </button>
+
           {/* Layer Source Disambiguation Segmented Pill */}
           <div className="hidden xl:flex items-center bg-[#001f2e]/80 p-1 rounded-xl border border-[#004b6b] text-[11px] font-semibold">
             <button
@@ -836,7 +1131,7 @@ export default function App() {
                   : 'text-slate-300 hover:text-white'
               }`}
             >
-              All Layers
+              All
             </button>
             <button
               onClick={() => setLayerVisibility('bellingcat')}
@@ -920,9 +1215,9 @@ export default function App() {
           2. MAIN WORKSPACE: DOCKABLE LEFT SIDEBAR + RIGHT MAP/TIMELINE COLUMN
          ==================================================================== */}
       <div className="flex-1 flex overflow-hidden relative">
-        {/* DOCKED LEFT SIDEBAR (Never overlaps map controls or timeline) */}
+        {/* DOCKED LEFT SIDEBAR */}
         {sidebarOpen && (
-          <aside className="w-[348px] shrink-0 h-full bg-white border-r border-slate-200 flex flex-col z-20 shadow-lg">
+          <aside className="w-[356px] shrink-0 h-full bg-white border-r border-slate-200 flex flex-col z-20 shadow-lg">
             {/* Top KPI Summary Cards */}
             <div className="p-3 bg-slate-50 border-b border-slate-200">
               <div className="grid grid-cols-2 gap-2">
@@ -946,8 +1241,8 @@ export default function App() {
                   <div className="text-lg font-black text-[#00364e] mt-0.5">
                     {loading ? '...' : stats.total.toLocaleString()}
                   </div>
-                  <div className="text-[10px] text-slate-500">
-                    {scope === 'kharkiv' ? 'In Kharkiv Region' : 'All Ukraine'}
+                  <div className="text-[10px] text-slate-500 truncate">
+                    {selectedDistrict ? selectedDistrict.short_name : scope === 'kharkiv' ? 'In Kharkiv Region' : 'All Ukraine'}
                   </div>
                 </button>
 
@@ -971,41 +1266,137 @@ export default function App() {
                   <div className="text-lg font-black text-rose-700 mt-0.5">
                     {filteredUnosatGeoJSON.features.length}
                   </div>
-                  <div className="text-[10px] text-slate-500">
-                    Click to inspect Saltivka
+                  <div className="text-[10px] text-slate-500 truncate">
+                    {selectedDistrict ? selectedDistrict.short_name : 'VHR Satellite Assessed'}
                   </div>
                 </button>
               </div>
             </div>
 
-            {/* Interactive Tab Switcher inside Sidebar */}
-            <div className="grid grid-cols-2 bg-slate-100 p-1 mx-3 mt-2.5 rounded-xl border border-slate-200 text-xs font-bold">
+            {/* 3-Tab Switcher inside Sidebar: Districts (9) | Sectors | UNOSAT */}
+            <div className="grid grid-cols-3 bg-slate-100 p-1 mx-3 mt-2.5 rounded-xl border border-slate-200 text-[11px] font-bold">
+              <button
+                onClick={() => setSidebarTab('districts')}
+                className={`py-1.5 rounded-lg transition-all flex items-center justify-center gap-1 ${
+                  sidebarTab === 'districts'
+                    ? 'bg-[#00364e] text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <MapIcon className="w-3 h-3 text-[#22c55e]" />
+                <span>Districts (9)</span>
+              </button>
               <button
                 onClick={() => setSidebarTab('incidents')}
-                className={`py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                className={`py-1.5 rounded-lg transition-all flex items-center justify-center gap-1 ${
                   sidebarTab === 'incidents'
                     ? 'bg-[#00364e] text-white shadow-sm'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                <CircleDot className="w-3.5 h-3.5 text-[#22c55e]" />
-                <span>Civilian Sectors</span>
+                <CircleDot className="w-3 h-3 text-[#38bdf8]" />
+                <span>Sectors</span>
               </button>
               <button
                 onClick={() => setSidebarTab('unosat')}
-                className={`py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                className={`py-1.5 rounded-lg transition-all flex items-center justify-center gap-1 ${
                   sidebarTab === 'unosat'
                     ? 'bg-[#00364e] text-white shadow-sm'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                <Building2 className="w-3.5 h-3.5 text-rose-400" />
-                <span>UNOSAT Grades</span>
+                <Building2 className="w-3 h-3 text-rose-400" />
+                <span>UNOSAT</span>
               </button>
             </div>
 
-            {/* TAB 1: BELLINGCAT CIVILIAN INCIDENTS & SECTORS */}
-            {sidebarTab === 'incidents' ? (
+            {/* TAB 1: KHARKIV 9 URBAN DISTRICTS (RAIONS) EXPLORER */}
+            {sidebarTab === 'districts' && (
+              <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Kharkiv Urban Raions by Priority
+                  </span>
+                  {selectedDistrict && (
+                    <button
+                      onClick={() => handleSelectDistrict(null)}
+                      className="flex items-center gap-1 text-[10px] font-bold text-[#16a34a] hover:underline"
+                    >
+                      <RotateCcw className="w-2.5 h-2.5" />
+                      <span>All Districts</span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  {districtsList.map((feat) => {
+                    const d = feat.properties;
+                    const isSelected = selectedDistrict?.id === d.id;
+                    const maxBurden = 527;
+                    const pct = Math.min(100, Math.max(5, Math.round((d.total_burden / maxBurden) * 100)));
+
+                    return (
+                      <button
+                        key={d.id}
+                        onClick={() => handleSelectDistrict(d)}
+                        className={`w-full text-left p-2.5 rounded-xl border transition-all ${
+                          isSelected
+                            ? 'bg-[#00364e]/5 border-[#00364e] ring-1 ring-[#00364e] shadow-sm'
+                            : 'bg-white hover:bg-slate-50 border-slate-200/80'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <div>
+                            <div className="font-bold text-xs text-slate-900 flex items-center gap-1.5">
+                              <span
+                                className="w-2.5 h-2.5 rounded-full shrink-0"
+                                style={{ backgroundColor: d.fill_color }}
+                              />
+                              <span>{d.name_en}</span>
+                            </div>
+                            <div className="text-[10px] text-slate-400 pl-4">{d.name_uk}</div>
+                          </div>
+
+                          <span
+                            className="text-[10px] font-bold px-2 py-0.5 rounded-full text-white"
+                            style={{ backgroundColor: d.fill_color }}
+                          >
+                            {d.priority_tier.replace(' Priority', '')}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-1.5 my-1.5 pl-4 text-[10px]">
+                          <div className="bg-slate-50 px-2 py-1 rounded border border-slate-100">
+                            <span className="text-slate-400 block">Incidents</span>
+                            <strong className="text-[#00364e] text-xs">{d.bellingcat_count}</strong>
+                          </div>
+                          <div className="bg-slate-50 px-2 py-1 rounded border border-slate-100">
+                            <span className="text-slate-400 block">UNOSAT Bldgs</span>
+                            <strong className="text-rose-600 text-xs">{d.unosat_count}</strong>
+                          </div>
+                          <div className="bg-slate-50 px-2 py-1 rounded border border-slate-100">
+                            <span className="text-slate-400 block">Housing/Soc</span>
+                            <strong className="text-amber-600 text-xs">
+                              {d.residential_incidents + d.social_incidents}
+                            </strong>
+                          </div>
+                        </div>
+
+                        <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden mt-1">
+                          <div
+                            className="h-full rounded-full transition-all duration-300"
+                            style={{ width: `${pct}%`, backgroundColor: d.fill_color }}
+                          />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* TAB 2: BELLINGCAT CIVILIAN INCIDENTS & SECTORS */}
+            {sidebarTab === 'incidents' && (
               <>
                 <div className="p-3 border-b border-slate-100 space-y-2.5">
                   <div className="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-xl">
@@ -1103,12 +1494,13 @@ export default function App() {
                     <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                       Click Sector to Filter Map
                     </span>
-                    {(selectedSector !== 'ALL' || selectedYear !== 'ALL' || searchQuery) && (
+                    {(selectedSector !== 'ALL' || selectedYear !== 'ALL' || searchQuery || selectedDistrict) && (
                       <button
                         onClick={() => {
                           setSelectedSector('ALL');
                           setSelectedYear('ALL');
                           setSearchQuery('');
+                          handleSelectDistrict(null);
                         }}
                         className="flex items-center gap-1 text-[10px] font-bold text-[#16a34a] hover:underline"
                       >
@@ -1161,8 +1553,10 @@ export default function App() {
                   </div>
                 </div>
               </>
-            ) : (
-              /* TAB 2: UNOSAT BUILDING-LEVEL DAMAGE GRADES (Interactive Filter) */
+            )}
+
+            {/* TAB 3: UNOSAT BUILDING-LEVEL DAMAGE GRADES */}
+            {sidebarTab === 'unosat' && (
               <div className="flex-1 overflow-y-auto p-3.5 space-y-3">
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
                   <div className="text-xs font-bold text-[#00364e] mb-1">
@@ -1245,13 +1639,13 @@ export default function App() {
           <div className="flex-1 relative w-full overflow-hidden">
             <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" />
 
-            {/* Live Hover Tooltip (Follows cursor cleanly) */}
+            {/* Live Hover Tooltip */}
             {hoverInfo && (
               <div
                 className="pointer-events-none absolute z-30 bg-[#002233]/95 text-white px-2.5 py-1.5 rounded-lg shadow-xl border border-white/15 text-[11px] max-w-xs"
                 style={{
-                  left: Math.min(hoverInfo.x + 14, window.innerWidth - 260),
-                  top: Math.max(hoverInfo.y - 36, 10)
+                  left: Math.min(hoverInfo.x + 14, window.innerWidth - 280),
+                  top: Math.max(hoverInfo.y - 38, 10)
                 }}
               >
                 <div className="flex items-center gap-1.5 font-bold">
@@ -1259,13 +1653,73 @@ export default function App() {
                     className="w-2 h-2 rounded-full shrink-0"
                     style={{ backgroundColor: hoverInfo.color }}
                   />
-                  <span>{hoverInfo.isUnosat ? `UNOSAT: ${hoverInfo.title}` : hoverInfo.title}</span>
+                  <span>
+                    {hoverInfo.isDistrict
+                      ? hoverInfo.title
+                      : hoverInfo.isUnosat
+                      ? `UNOSAT: ${hoverInfo.title}`
+                      : hoverInfo.title}
+                  </span>
                 </div>
                 <div className="text-[10px] text-slate-300 truncate">{hoverInfo.subtitle}</div>
               </div>
             )}
 
-            {/* SELECTED FEATURE INSPECTOR CARD — Anchored TOP-RIGHT of map canvas (Never hits Legend or Timeline!) */}
+            {/* SELECTED DISTRICT RECOVERY PROFILE CARD — Anchored TOP-RIGHT */}
+            {selectedDistrict && !selectedEvent && (
+              <div className="absolute top-3 right-3 z-20 w-80 bg-white/95 backdrop-blur-md border border-slate-200 shadow-2xl rounded-2xl p-4">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <span
+                    className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold text-white shadow-sm"
+                    style={{ backgroundColor: selectedDistrict.fill_color }}
+                  >
+                    <ShieldAlert className="w-3 h-3" />
+                    <span>{selectedDistrict.priority_tier}</span>
+                  </span>
+                  <button
+                    onClick={() => handleSelectDistrict(null)}
+                    className="text-slate-400 hover:text-slate-700 p-0.5"
+                    title="Clear District Selection"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <h3 className="font-bold text-slate-900 text-sm">{selectedDistrict.name_en}</h3>
+                <div className="text-xs text-slate-500 mb-3">{selectedDistrict.name_uk} • Kharkiv City</div>
+
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  <div className="bg-slate-50 p-2 rounded-xl border border-slate-100">
+                    <div className="text-[10px] font-bold uppercase text-slate-400">Civilian Incidents</div>
+                    <div className="text-base font-black text-[#00364e]">{selectedDistrict.bellingcat_count}</div>
+                    <div className="text-[10px] text-slate-500">
+                      {selectedDistrict.residential_incidents} Housing • {selectedDistrict.social_incidents} Social
+                    </div>
+                  </div>
+                  <div className="bg-rose-50/50 p-2 rounded-xl border border-rose-100">
+                    <div className="text-[10px] font-bold uppercase text-rose-700">UNOSAT Buildings</div>
+                    <div className="text-base font-black text-rose-700">{selectedDistrict.unosat_count}</div>
+                    <div className="text-[10px] text-rose-600">
+                      {selectedDistrict.unosat_destroyed} Destroyed • {selectedDistrict.unosat_severe} Severe
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between text-[11px] text-slate-600 pt-2 border-t border-slate-100">
+                  <span>
+                    Primary Impact: <strong className="text-slate-900">{selectedDistrict.top_sector}</strong>
+                  </span>
+                  <button
+                    onClick={() => handleSelectDistrict(null)}
+                    className="text-[11px] font-bold text-[#16a34a] hover:underline"
+                  >
+                    Show All City
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* SELECTED FEATURE INSPECTOR CARD — Anchored TOP-RIGHT */}
             {selectedEvent && (
               <div className="absolute top-3 right-3 z-20 w-80 bg-white/95 backdrop-blur-md border border-slate-200 shadow-2xl rounded-2xl p-4">
                 <div className="flex items-start justify-between gap-2 mb-2">
@@ -1350,7 +1804,7 @@ export default function App() {
               </div>
             )}
 
-            {/* COMPACT LEGEND — Anchored BOTTOM-LEFT of map canvas (Never collides with Inspector or Timeline!) */}
+            {/* COMPACT LEGEND — Anchored BOTTOM-LEFT of map canvas */}
             <div className="absolute bottom-3 left-3 z-20">
               {legendOpen ? (
                 <div className="bg-white/95 backdrop-blur-md border border-slate-200/90 shadow-xl rounded-2xl p-3 w-64">
@@ -1366,9 +1820,8 @@ export default function App() {
                     </button>
                   </div>
 
-                  {/* Symbol Disambiguation Row */}
-                  <div className="space-y-2 text-[11px]">
-                    <div className="flex items-center justify-between bg-slate-50 px-2 py-1.5 rounded-lg border border-slate-100">
+                  <div className="space-y-1.5 text-[11px]">
+                    <div className="flex items-center justify-between bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
                       <span className="flex items-center gap-2 font-semibold text-slate-800">
                         <span className="w-3 h-3 rounded-full bg-rose-500 border-2 border-slate-950 shrink-0" />
                         <span>UNOSAT Building (Black Ring)</span>
@@ -1376,12 +1829,20 @@ export default function App() {
                       <span className="text-[10px] font-bold text-rose-600">520</span>
                     </div>
 
-                    <div className="flex items-center justify-between bg-slate-50 px-2 py-1.5 rounded-lg border border-slate-100">
+                    <div className="flex items-center justify-between bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
                       <span className="flex items-center gap-2 font-semibold text-slate-800">
                         <span className="w-3 h-3 rounded-full bg-[#0284c7] border-2 border-white shadow shrink-0" />
                         <span>Civilian Incident (White Ring)</span>
                       </span>
                       <span className="text-[10px] font-bold text-[#00364e]">{stats.total}</span>
+                    </div>
+
+                    <div className="flex items-center justify-between bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
+                      <span className="flex items-center gap-2 font-semibold text-slate-800">
+                        <span className="w-3 h-2 rounded-sm bg-emerald-500/30 border border-emerald-500 shrink-0" />
+                        <span>9 Urban Districts + Oblast</span>
+                      </span>
+                      <span className="text-[10px] font-bold text-[#16a34a]">Click</span>
                     </div>
                   </div>
                 </div>
@@ -1398,7 +1859,7 @@ export default function App() {
           </div>
 
           {/* ================================================================
-              4. DOCKED BOTTOM TIMELINE BAR (Sits cleanly below map canvas!)
+              4. DOCKED BOTTOM TIMELINE BAR
              ================================================================ */}
           {timelineOpen ? (
             <div className="h-24 shrink-0 bg-[#002233] text-white border-t border-[#004b6b] px-4 py-2 flex flex-col justify-between z-20">
