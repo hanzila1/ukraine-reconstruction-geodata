@@ -15,13 +15,10 @@ import {
   ChevronUp,
   RotateCcw,
   Building2,
-  ShieldAlert,
   Info,
   Check,
-  Eye,
-  EyeOff,
-  Filter,
-  Maximize2,
+  Crosshair,
+  SlidersHorizontal,
   X
 } from 'lucide-react';
 
@@ -108,27 +105,31 @@ const BASEMAPS = {
 const CAMERA_PRESETS = {
   ukraine: {
     label: 'Ukraine Overview',
+    shortLabel: 'Ukraine',
     center: [34.2, 48.35],
     zoom: 5.3,
     pitch: 0
   },
   kharkiv_oblast: {
     label: 'Kharkiv Oblast',
+    shortLabel: 'Oblast',
     center: [36.55, 49.65],
     zoom: 7.7,
     pitch: 0
   },
   kharkiv_city: {
     label: 'Kharkiv Urban Core',
-    center: [36.245, 49.998],
+    shortLabel: 'Urban Core',
+    center: [36.265, 50.005],
     zoom: 11.4,
     pitch: 15
   },
   saltivka: {
     label: 'North Saltivka Hotspot',
-    center: [36.356, 50.037],
-    zoom: 13.8,
-    pitch: 25
+    shortLabel: 'North Saltivka',
+    center: [36.352, 50.041],
+    zoom: 14.1,
+    pitch: 28
   }
 };
 
@@ -191,7 +192,7 @@ function createInitialStyle() {
       data: '/data/ukraine_civilian_damage.geojson',
       cluster: true,
       clusterMaxZoom: 13,
-      clusterRadius: 48
+      clusterRadius: 46
     },
     'damage-raw': {
       type: 'geojson',
@@ -204,7 +205,7 @@ function createInitialStyle() {
   };
 
   const layers = [
-    // 1. Basemap Raster Layers (Satellite is default)
+    // 1. Basemap Raster Layers (Satellite Hybrid Default)
     { id: 'layer-satellite', type: 'raster', source: 'bm-satellite', layout: { visibility: 'visible' } },
     { id: 'layer-satellite-labels', type: 'raster', source: 'bm-satellite-labels', layout: { visibility: 'visible' } },
     { id: 'layer-voyager', type: 'raster', source: 'bm-voyager', layout: { visibility: 'none' } },
@@ -212,7 +213,7 @@ function createInitialStyle() {
     { id: 'layer-positron', type: 'raster', source: 'bm-positron', layout: { visibility: 'none' } },
     { id: 'layer-topo', type: 'raster', source: 'bm-topo', layout: { visibility: 'none' } },
 
-    // 2. Heatmap Layer (Bellingcat Incidents)
+    // 2. Heatmap Layer
     {
       id: 'damage-heat',
       type: 'heatmap',
@@ -246,16 +247,16 @@ function createInitialStyle() {
       layout: { visibility: 'visible' },
       paint: {
         'circle-color': '#00364e',
-        'circle-opacity': 0.3,
+        'circle-opacity': 0.28,
         'circle-radius': [
           'interpolate',
           ['linear'],
           ['get', 'point_count'],
-          2, 18,
-          25, 28,
-          100, 42,
-          400, 58,
-          800, 72
+          2, 17,
+          25, 26,
+          100, 38,
+          400, 52,
+          800, 66
         ]
       }
     },
@@ -267,7 +268,7 @@ function createInitialStyle() {
       layout: { visibility: 'visible' },
       paint: {
         'circle-color': '#00364e',
-        'circle-opacity': 0.88,
+        'circle-opacity': 0.9,
         'circle-stroke-width': 2,
         'circle-stroke-color': '#22c55e',
         'circle-stroke-opacity': 0.95,
@@ -275,11 +276,11 @@ function createInitialStyle() {
           'interpolate',
           ['linear'],
           ['get', 'point_count'],
-          2, 13,
-          25, 21,
-          100, 32,
-          400, 45,
-          800, 56
+          2, 12,
+          25, 19,
+          100, 29,
+          400, 42,
+          800, 52
         ]
       }
     },
@@ -299,7 +300,7 @@ function createInitialStyle() {
       }
     },
 
-    // 4. Bellingcat Individual Unclustered Points (Round Incident Markers)
+    // 4. Bellingcat Individual Unclustered Points (White-Bordered Soft Halo Circles)
     {
       id: 'unclustered-point-halo',
       type: 'circle',
@@ -308,7 +309,7 @@ function createInitialStyle() {
       layout: { visibility: 'visible' },
       paint: {
         'circle-color': COLOR_MATCH_EXPR,
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 5, 8, 12, 12, 16, 16],
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 5, 7, 12, 11, 16, 15],
         'circle-opacity': 0.28
       }
     },
@@ -320,8 +321,8 @@ function createInitialStyle() {
       layout: { visibility: 'visible' },
       paint: {
         'circle-color': COLOR_MATCH_EXPR,
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 5, 4.5, 12, 6.5, 16, 8.5],
-        'circle-stroke-width': 1.5,
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 5, 4, 12, 6, 16, 8.5],
+        'circle-stroke-width': 2,
         'circle-stroke-color': '#ffffff',
         'circle-opacity': 0.95
       }
@@ -335,37 +336,27 @@ function createInitialStyle() {
       layout: { visibility: 'none' },
       paint: {
         'circle-color': COLOR_MATCH_EXPR,
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 5, 4, 10, 6, 15, 8],
-        'circle-stroke-width': 1.2,
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 5, 3.5, 10, 5.5, 15, 8],
+        'circle-stroke-width': 1.5,
         'circle-stroke-color': '#ffffff',
         'circle-opacity': 0.9
       }
     },
 
-    // 6. PILLAR 2: UNOSAT BUILDING-LEVEL DAMAGE (Visual Disambiguation)
-    // Styled as Tactical High-Contrast Building Badges with Black Outlines & Outer Target Rings
+    // 6. PILLAR 2: UNOSAT BUILDING-LEVEL DAMAGE
+    // Cleanly scaled by zoom so they don't clump at city zoom, and expand into target rings at rooftop zoom
     {
       id: 'unosat-buildings-target',
       type: 'circle',
       source: 'unosat-damage',
+      minzoom: 12.5,
       layout: { visibility: 'visible' },
       paint: {
         'circle-color': 'rgba(0,0,0,0)',
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 11, 6, 14, 11, 17, 18],
-        'circle-stroke-width': 1.5,
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 12.5, 5, 14.5, 10, 17, 17],
+        'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 12.5, 1, 15, 1.8],
         'circle-stroke-color': ['get', 'damage_color'],
         'circle-stroke-opacity': 0.85
-      }
-    },
-    {
-      id: 'unosat-buildings-halo',
-      type: 'circle',
-      source: 'unosat-damage',
-      layout: { visibility: 'visible' },
-      paint: {
-        'circle-color': ['get', 'damage_color'],
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 11, 4, 14, 8, 17, 14],
-        'circle-opacity': 0.35
       }
     },
     {
@@ -375,10 +366,10 @@ function createInitialStyle() {
       layout: { visibility: 'visible' },
       paint: {
         'circle-color': ['get', 'damage_color'],
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 11, 3, 14, 5.5, 17, 9.5],
-        'circle-stroke-width': 2,
-        'circle-stroke-color': '#000000',
-        'circle-opacity': 1.0
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 8, 2, 11.5, 3.2, 14, 5.5, 17, 9.5],
+        'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 8, 0.8, 12, 1.5, 15, 2.2],
+        'circle-stroke-color': '#090d16',
+        'circle-opacity': 0.96
       }
     }
   ];
@@ -397,40 +388,47 @@ export default function App() {
   const mapLoadedRef = useRef(false);
 
   const [allFeatures, setAllFeatures] = useState([]);
+  const [unosatFeatures, setUnosatFeatures] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // UI & Drawer States
+  // Layout Dock States (Zero Overlap Flex Architecture)
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [timelineOpen, setTimelineOpen] = useState(false); // Collapsible Timeline
-  const [basemapOpen, setBasemapOpen] = useState(false); // Collapsible Basemap Picker
-  const [legendOpen, setLegendOpen] = useState(true); // Collapsible Legend
+  const [sidebarTab, setSidebarTab] = useState('incidents'); // 'incidents' | 'unosat'
+  const [timelineOpen, setTimelineOpen] = useState(true);
+  const [basemapOpen, setBasemapOpen] = useState(false);
+  const [legendOpen, setLegendOpen] = useState(true);
 
   // Map & Filter States
   const [activePreset, setActivePreset] = useState('kharkiv_city');
-  const [basemap, setBasemap] = useState('satellite'); // DEFAULT: Satellite Hybrid
+  const [basemap, setBasemap] = useState('satellite');
   const [layerVisibility, setLayerVisibility] = useState('both'); // 'both' | 'bellingcat' | 'unosat'
   const [scope, setScope] = useState('kharkiv'); // 'all' or 'kharkiv'
   const [selectedSector, setSelectedSector] = useState('ALL');
+  const [selectedUnosatGrade, setSelectedUnosatGrade] = useState('ALL');
   const [selectedYear, setSelectedYear] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [vizMode, setVizMode] = useState('clusters'); // 'clusters' | 'points' | 'heatmap'
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [hoverInfo, setHoverInfo] = useState(null);
 
-  // Fetch GeoJSON for React state & filtering
+  // Fetch Both Datasets
   useEffect(() => {
-    fetch('/data/ukraine_civilian_damage.geojson')
-      .then((res) => res.json())
-      .then((data) => {
-        setAllFeatures(data.features || []);
+    Promise.all([
+      fetch('/data/ukraine_civilian_damage.geojson').then((r) => r.json()),
+      fetch('/data/unosat_kharkiv_building_damage.geojson').then((r) => r.json())
+    ])
+      .then(([ukrData, unosatData]) => {
+        setAllFeatures(ukrData.features || []);
+        setUnosatFeatures(unosatData.features || []);
         setLoading(false);
       })
       .catch((err) => {
-        console.error('Failed to load GeoJSON:', err);
+        console.error('Failed to load GeoJSON datasets:', err);
         setLoading(false);
       });
   }, []);
 
-  // Filtered GeoJSON & Analytics
+  // Filtered Bellingcat GeoJSON & Analytics
   const { filteredGeoJSON, stats } = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     const matched = [];
@@ -498,6 +496,18 @@ export default function App() {
     };
   }, [allFeatures, scope, selectedSector, selectedYear, searchQuery]);
 
+  // Filtered UNOSAT Building Damage GeoJSON
+  const filteredUnosatGeoJSON = useMemo(() => {
+    const matched = unosatFeatures.filter((f) => {
+      if (selectedUnosatGrade === 'ALL') return true;
+      return f.properties?.damage_grade === selectedUnosatGrade;
+    });
+    return {
+      type: 'FeatureCollection',
+      features: matched
+    };
+  }, [unosatFeatures, selectedUnosatGrade]);
+
   // Initialize MapLibre Map once
   useEffect(() => {
     if (mapRef.current || !mapContainerRef.current) return;
@@ -512,7 +522,7 @@ export default function App() {
     });
 
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'bottom-right');
-    map.addControl(new maplibregl.ScaleControl({ maxWidth: 120, unit: 'metric' }), 'bottom-right');
+    map.addControl(new maplibregl.ScaleControl({ maxWidth: 110, unit: 'metric' }), 'bottom-right');
 
     map.on('load', () => {
       mapLoadedRef.current = true;
@@ -560,13 +570,37 @@ export default function App() {
       map.easeTo({ center: coords, duration: 450 });
     });
 
-    ['clusters', 'unclustered-point', 'all-points-direct', 'unosat-buildings'].forEach((layerId) => {
-      map.on('mouseenter', layerId, () => {
+    // Live Hover Tooltip
+    const interactiveLayers = ['unclustered-point', 'all-points-direct', 'unosat-buildings'];
+    interactiveLayers.forEach((layerId) => {
+      map.on('mousemove', layerId, (e) => {
         map.getCanvas().style.cursor = 'pointer';
+        if (e.features && e.features.length > 0) {
+          const f = e.features[0];
+          const isUnosat = layerId === 'unosat-buildings';
+          setHoverInfo({
+            x: e.point.x,
+            y: e.point.y,
+            isUnosat,
+            title: isUnosat ? f.properties.damage_grade : f.properties.primary_sector,
+            subtitle: isUnosat ? f.properties.id : `${f.properties.location || 'Ukraine'} (${f.properties.date})`,
+            color: isUnosat
+              ? (f.properties.damage_color || '#ef4444')
+              : (SECTOR_CONFIG[f.properties.primary_sector]?.color || '#0284c7')
+          });
+        }
       });
       map.on('mouseleave', layerId, () => {
         map.getCanvas().style.cursor = '';
+        setHoverInfo(null);
       });
+    });
+
+    map.on('mouseenter', 'clusters', () => {
+      map.getCanvas().style.cursor = 'pointer';
+    });
+    map.on('mouseleave', 'clusters', () => {
+      map.getCanvas().style.cursor = '';
     });
 
     mapRef.current = map;
@@ -578,7 +612,17 @@ export default function App() {
     };
   }, []);
 
-  // Update GeoJSON sources whenever filters change
+  // Resize MapLibre canvas smoothly whenever sidebar or timeline docks toggle
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const timer = setTimeout(() => {
+      map.resize();
+    }, 60);
+    return () => clearTimeout(timer);
+  }, [sidebarOpen, timelineOpen]);
+
+  // Update Bellingcat GeoJSON sources whenever filters change
   useEffect(() => {
     const map = mapRef.current;
     if (!map || loading) return;
@@ -597,6 +641,23 @@ export default function App() {
     }
   }, [filteredGeoJSON, loading]);
 
+  // Update UNOSAT GeoJSON source whenever UNOSAT grade filter changes
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || loading) return;
+
+    const applyUnosat = () => {
+      const sUnosat = map.getSource('unosat-damage');
+      if (sUnosat) sUnosat.setData(filteredUnosatGeoJSON);
+    };
+
+    if (mapLoadedRef.current) {
+      applyUnosat();
+    } else {
+      map.once('load', applyUnosat);
+    }
+  }, [filteredUnosatGeoJSON, loading]);
+
   // Update layer visibilities when vizMode or layerVisibility changes
   useEffect(() => {
     const map = mapRef.current;
@@ -612,7 +673,6 @@ export default function App() {
       const showBellingcat = layerVisibility === 'both' || layerVisibility === 'bellingcat';
       const showUnosat = layerVisibility === 'both' || layerVisibility === 'unosat';
 
-      // Bellingcat Layers
       setVis('damage-heat', showBellingcat && vizMode === 'heatmap');
       setVis('cluster-halo', showBellingcat && vizMode === 'clusters');
       setVis('clusters', showBellingcat && vizMode === 'clusters');
@@ -621,9 +681,7 @@ export default function App() {
       setVis('unclustered-point', showBellingcat && vizMode === 'clusters');
       setVis('all-points-direct', showBellingcat && vizMode === 'points');
 
-      // UNOSAT Layers
       setVis('unosat-buildings-target', showUnosat);
-      setVis('unosat-buildings-halo', showUnosat);
       setVis('unosat-buildings', showUnosat);
     };
 
@@ -637,7 +695,7 @@ export default function App() {
   // Switch Basemap instantaneously
   const handleBasemapChange = (newKey) => {
     setBasemap(newKey);
-    setBasemapOpen(false); // Close dropdown on selection
+    setBasemapOpen(false);
     const map = mapRef.current;
     if (!map || !mapLoadedRef.current) return;
 
@@ -671,12 +729,27 @@ export default function App() {
       setScope('kharkiv');
     }
 
+    if (key === 'saltivka') {
+      setSidebarTab('unosat');
+    }
+
     mapRef.current.flyTo({
       center: preset.center,
       zoom: preset.zoom,
       pitch: preset.pitch,
-      duration: 1300,
+      duration: 1250,
       essential: true
+    });
+  };
+
+  // Zoom directly to selected rooftop / incident
+  const zoomToSelectedFeature = () => {
+    if (!selectedEvent || !mapRef.current) return;
+    mapRef.current.flyTo({
+      center: selectedEvent.coordinates,
+      zoom: 16.8,
+      pitch: 35,
+      duration: 900
     });
   };
 
@@ -696,616 +769,715 @@ export default function App() {
   const maxMonthCount = Math.max(1, ...stats.monthsList.map((m) => m.count));
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden bg-[#001f2e] select-none text-slate-800">
-      {/* Fullscreen MapLibre Canvas */}
-      <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" />
+    <div className="flex flex-col w-screen h-screen overflow-hidden bg-[#001f2e] select-none text-slate-800">
+      {/* ====================================================================
+          1. DEDICATED TOP NAVBAR (Never wraps or overlaps sidebar/map)
+         ==================================================================== */}
+      <header className="h-14 shrink-0 bg-[#002b3d] border-b border-[#004b6b] px-3.5 flex items-center justify-between gap-3 z-30 shadow-md">
+        {/* Left: Brand Identity */}
+        <div className="flex items-center gap-2.5 min-w-0">
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#00364e] hover:bg-[#004b6b] text-[#22c55e] border border-[#004b6b] transition-colors shrink-0"
+            title={sidebarOpen ? 'Collapse Left Panel' : 'Expand Left Panel'}
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+          </button>
 
-      {/* Top Floating Navigation & Brand Header (Styled with Salzburg Lab Palette) */}
-      <header className="absolute top-3.5 left-3.5 right-3.5 z-20 flex flex-wrap items-center justify-between gap-2.5 pointer-events-none">
-        
-        {/* Lab Brand Badge: Deep Navy #00364e + Emerald Green '+' */}
-        <div className="pointer-events-auto flex items-center gap-3 bg-[#002b3d]/95 backdrop-blur-md border border-[#004b6b] shadow-xl rounded-2xl px-4 py-2.5 text-white">
-          <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-br from-[#16a34a] to-[#0d9488] text-white font-black text-sm tracking-tight shadow-md border border-white/20">
+          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-[#16a34a] to-[#0d9488] text-white font-black text-xs tracking-tight shadow-sm border border-white/20 shrink-0">
             Z+
           </div>
-          <div>
+
+          <div className="truncate">
             <div className="flex items-center gap-2">
               <span className="font-bold text-white text-sm tracking-tight flex items-center">
-                geoInnovation:lab<span className="text-[#22c55e] font-black ml-0.5 text-base">+</span>
+                geoInnovation:lab<span className="text-[#22c55e] font-black ml-0.5">+</span>
               </span>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#16a34a]/25 text-[#4ade80] border border-[#16a34a]/40 uppercase tracking-wide">
-                Ukraine Recovery
+              <span className="hidden sm:inline-block text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#16a34a]/25 text-[#4ade80] border border-[#16a34a]/40 uppercase tracking-wide">
+                Kharkiv Recovery
               </span>
             </div>
-            <p className="text-[11px] text-slate-300 font-medium">
-              Z_GIS University of Salzburg × O.M. Beketov Urban Economy University Kharkiv
+            <p className="text-[10px] text-slate-300 truncate hidden md:block">
+              Z_GIS University of Salzburg × O.M. Beketov National University of Urban Economy
             </p>
           </div>
         </div>
 
-        {/* Central View Presets & Layer Filter Pills */}
-        <div className="pointer-events-auto flex items-center gap-1.5 bg-white/95 backdrop-blur-md border border-slate-200/90 shadow-xl rounded-2xl p-1.5">
+        {/* Center: Region Quick-Zoom Pills */}
+        <div className="flex items-center gap-1 bg-[#001f2e]/80 p-1 rounded-xl border border-[#004b6b]">
           {Object.entries(CAMERA_PRESETS).map(([key, preset]) => {
             const isActive = activePreset === key;
             return (
               <button
                 key={key}
                 onClick={() => handlePresetClick(key)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
                   isActive
-                    ? 'bg-[#00364e] text-white shadow-sm ring-1 ring-[#16a34a]'
-                    : 'text-slate-700 hover:bg-slate-100'
+                    ? 'bg-[#16a34a] text-white shadow-sm'
+                    : 'text-slate-300 hover:text-white hover:bg-white/5'
                 }`}
               >
-                {preset.label}
+                <span className="hidden lg:inline">{preset.label}</span>
+                <span className="lg:hidden">{preset.shortLabel}</span>
               </button>
             );
           })}
+        </div>
 
-          <div className="h-5 w-px bg-slate-200 mx-1" />
-
-          {/* Layer Source Disambiguation Selector */}
-          <div className="flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200 text-xs font-medium">
+        {/* Right: Layer Disambiguation Switcher, Basemap Menu & Export */}
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Layer Source Disambiguation Segmented Pill */}
+          <div className="hidden xl:flex items-center bg-[#001f2e]/80 p-1 rounded-xl border border-[#004b6b] text-[11px] font-semibold">
             <button
               onClick={() => setLayerVisibility('both')}
-              className={`px-2.5 py-1 rounded-lg transition-all text-[11px] font-semibold ${
+              className={`px-2.5 py-1 rounded-lg transition-all ${
                 layerVisibility === 'both'
-                  ? 'bg-white text-[#00364e] shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-[#00364e] text-white border border-[#22c55e]/60'
+                  : 'text-slate-300 hover:text-white'
               }`}
             >
               All Layers
             </button>
             <button
               onClick={() => setLayerVisibility('bellingcat')}
-              className={`px-2.5 py-1 rounded-lg transition-all text-[11px] font-semibold flex items-center gap-1 ${
+              className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1.5 ${
                 layerVisibility === 'bellingcat'
-                  ? 'bg-white text-[#0284c7] shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-[#00364e] text-[#38bdf8] border border-[#38bdf8]/60'
+                  : 'text-slate-300 hover:text-white'
               }`}
-              title="Show only Macro Civilian Incidents (Bellingcat)"
             >
-              <span className="w-2 h-2 rounded-full bg-[#0284c7]" />
-              <span>Incidents (789)</span>
+              <span className="w-2 h-2 rounded-full bg-[#38bdf8] ring-1 ring-white" />
+              <span>Incidents ({stats.total})</span>
             </button>
             <button
               onClick={() => setLayerVisibility('unosat')}
-              className={`px-2.5 py-1 rounded-lg transition-all text-[11px] font-semibold flex items-center gap-1 ${
+              className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1.5 ${
                 layerVisibility === 'unosat'
-                  ? 'bg-white text-rose-600 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-[#00364e] text-rose-400 border border-rose-400/60'
+                  : 'text-slate-300 hover:text-white'
               }`}
-              title="Show only UNOSAT Building-Level Damage (Saltivka VHR Satellite)"
             >
-              <span className="w-2 h-2 bg-rose-500 rounded-sm border border-black" />
-              <span>UNOSAT Buildings (520)</span>
+              <span className="w-2 h-2 rounded-full bg-rose-500 ring-1 ring-black" />
+              <span>UNOSAT ({filteredUnosatGeoJSON.features.length})</span>
             </button>
           </div>
 
-          <div className="h-5 w-px bg-slate-200 mx-1" />
+          {/* Basemap Dropdown Trigger */}
+          <div className="relative">
+            <button
+              onClick={() => setBasemapOpen(!basemapOpen)}
+              className="flex items-center gap-1.5 bg-[#00364e] hover:bg-[#004b6b] text-white border border-[#004b6b] rounded-xl px-3 py-1.5 text-xs font-semibold transition-all"
+            >
+              <Layers className="w-3.5 h-3.5 text-[#22c55e]" />
+              <span className="hidden sm:inline">{BASEMAPS[basemap]?.name}</span>
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${basemapOpen ? 'rotate-180 text-[#22c55e]' : 'text-slate-300'}`} />
+            </button>
 
+            {basemapOpen && (
+              <div className="absolute top-11 right-0 w-52 bg-white border border-slate-200 shadow-2xl rounded-2xl p-2 z-50">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-2 py-1">
+                  Base Cartography
+                </div>
+                {Object.entries(BASEMAPS).map(([key, bm]) => {
+                  const active = basemap === key;
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => handleBasemapChange(key)}
+                      className={`w-full flex flex-col text-left px-2.5 py-1.5 rounded-xl transition-all ${
+                        active
+                          ? 'bg-[#00364e] text-white shadow-sm'
+                          : 'hover:bg-slate-100 text-slate-700'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <span className="text-xs font-bold">{bm.name}</span>
+                        {active && <Check className="w-3.5 h-3.5 text-[#22c55e]" />}
+                      </div>
+                      <span className={`text-[10px] ${active ? 'text-slate-300' : 'text-slate-400'}`}>
+                        {bm.subtitle}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Export Button */}
           <button
             onClick={handleExportGeoJSON}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#16a34a]/10 text-[#15803d] border border-[#16a34a]/30 hover:bg-[#16a34a] hover:text-white transition-all shadow-sm"
-            title="Download currently filtered events as GeoJSON"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#16a34a] hover:bg-[#15803d] text-white transition-all shadow-sm"
+            title="Export filtered GeoJSON"
           >
             <Download className="w-3.5 h-3.5" />
-            <span>Export ({stats.total})</span>
+            <span className="hidden md:inline">Export</span>
           </button>
-        </div>
-
-        {/* Collapsible Basemap Trigger Button (Right Dock) */}
-        <div className="pointer-events-auto relative">
-          <button
-            onClick={() => setBasemapOpen(!basemapOpen)}
-            className="flex items-center gap-2 bg-[#002b3d]/95 backdrop-blur-md text-white border border-[#004b6b] hover:border-[#16a34a] shadow-xl rounded-2xl px-3.5 py-2 text-xs font-semibold transition-all"
-          >
-            <Layers className="w-3.5 h-3.5 text-[#22c55e]" />
-            <span>{BASEMAPS[basemap]?.name || 'Basemap'}</span>
-            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${basemapOpen ? 'rotate-180 text-[#22c55e]' : 'text-slate-400'}`} />
-          </button>
-
-          {/* Dropdown Menu for Basemaps */}
-          {basemapOpen && (
-            <div className="absolute top-12 right-0 w-52 bg-white/95 backdrop-blur-md border border-slate-200 shadow-2xl rounded-2xl p-2 z-30 animate-in fade-in slide-in-from-top-2">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-2 py-1 mb-1">
-                Select Base Cartography
-              </div>
-              {Object.entries(BASEMAPS).map(([key, bm]) => {
-                const active = basemap === key;
-                return (
-                  <button
-                    key={key}
-                    onClick={() => handleBasemapChange(key)}
-                    className={`w-full flex flex-col text-left px-2.5 py-1.5 rounded-xl transition-all ${
-                      active
-                        ? 'bg-[#00364e] text-white shadow-sm ring-1 ring-[#16a34a]'
-                        : 'hover:bg-slate-100 text-slate-700'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between w-full">
-                      <span className="text-xs font-bold">{bm.name}</span>
-                      {active && <Check className="w-3.5 h-3.5 text-[#22c55e]" />}
-                    </div>
-                    <span className={`text-[10px] ${active ? 'text-slate-300' : 'text-slate-400'}`}>
-                      {bm.subtitle}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
         </div>
       </header>
 
-      {/* Left Floating Collapsible Analytics Drawer */}
-      <aside
-        className={`absolute top-20 bottom-14 left-3.5 z-20 flex transition-transform duration-300 ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-[364px]'
-        }`}
-      >
-        <div className="w-[356px] h-full bg-white/95 backdrop-blur-md border border-slate-200/90 shadow-2xl rounded-2xl flex flex-col overflow-hidden">
-          
-          {/* Header Strip with Lab Branding */}
-          <div className="px-4 py-2.5 bg-gradient-to-r from-[#00364e] to-[#004b6b] text-white flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-[#22c55e] animate-pulse" />
-              <span className="text-xs font-bold tracking-tight">Recovery Decision Support</span>
-            </div>
-            <span className="text-[10px] font-semibold bg-white/15 px-2 py-0.5 rounded-full border border-white/20 text-slate-100">
-              {scope === 'kharkiv' ? 'Kharkiv Focus' : 'National'}
-            </span>
-          </div>
-
-          {/* Quick Metrics Grid */}
-          <div className="p-3.5 border-b border-slate-100 bg-slate-50/70">
-            <div className="grid grid-cols-2 gap-2">
-              <div className="bg-white p-2.5 rounded-xl border border-slate-200/90 shadow-sm">
-                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  Verified Civilian Incidents
-                </div>
-                <div className="text-lg font-black text-[#00364e] mt-0.5">
-                  {loading ? '...' : stats.total.toLocaleString()}
-                </div>
-                <div className="text-[10px] text-slate-500">
-                  Macro damage events
-                </div>
-              </div>
-
-              <div className="bg-white p-2.5 rounded-xl border border-[#16a34a]/40 shadow-sm bg-gradient-to-br from-emerald-50/40 to-white">
-                <div className="text-[10px] font-bold uppercase tracking-wider text-[#15803d]">
-                  UNOSAT VHR Buildings
-                </div>
-                <div className="text-lg font-black text-[#15803d] mt-0.5">
-                  520
-                </div>
-                <div className="text-[10px] text-slate-500">
-                  North Saltivka footprints
-                </div>
-              </div>
-
-              <div className="bg-white p-2.5 rounded-xl border border-slate-200/90 shadow-sm">
-                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  Residential Housing
-                </div>
-                <div className="text-base font-bold text-rose-600 mt-0.5">
-                  {stats.residentialCount.toLocaleString()}
-                </div>
-                <div className="text-[10px] text-slate-500">
-                  Primary recovery need
-                </div>
-              </div>
-
-              <div className="bg-white p-2.5 rounded-xl border border-slate-200/90 shadow-sm">
-                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  Schools & Hospitals
-                </div>
-                <div className="text-base font-bold text-amber-600 mt-0.5">
-                  {stats.socialInfraCount.toLocaleString()}
-                </div>
-                <div className="text-[10px] text-slate-500">
-                  Critical social assets
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Filters & Map Representation */}
-          <div className="p-3.5 border-b border-slate-100 space-y-2.5">
-            <div>
-              <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-                Incident Representation
-              </label>
-              <div className="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-xl">
+      {/* ====================================================================
+          2. MAIN WORKSPACE: DOCKABLE LEFT SIDEBAR + RIGHT MAP/TIMELINE COLUMN
+         ==================================================================== */}
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* DOCKED LEFT SIDEBAR (Never overlaps map controls or timeline) */}
+        {sidebarOpen && (
+          <aside className="w-[348px] shrink-0 h-full bg-white border-r border-slate-200 flex flex-col z-20 shadow-lg">
+            {/* Top KPI Summary Cards */}
+            <div className="p-3 bg-slate-50 border-b border-slate-200">
+              <div className="grid grid-cols-2 gap-2">
                 <button
-                  onClick={() => setVizMode('clusters')}
-                  className={`flex items-center justify-center gap-1 py-1 rounded-lg text-xs font-semibold transition-all ${
-                    vizMode === 'clusters'
-                      ? 'bg-[#00364e] text-white shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900'
+                  onClick={() => {
+                    setSidebarTab('incidents');
+                    setLayerVisibility('both');
+                  }}
+                  className={`text-left p-2.5 rounded-xl border transition-all ${
+                    sidebarTab === 'incidents'
+                      ? 'bg-white border-[#00364e] ring-1 ring-[#00364e] shadow-sm'
+                      : 'bg-white/70 border-slate-200 hover:bg-white'
                   }`}
                 >
-                  <CircleDot className="w-3 h-3 text-[#22c55e]" />
-                  <span>Clusters</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      Civilian Incidents
+                    </span>
+                    <span className="w-2 h-2 rounded-full bg-[#0284c7]" />
+                  </div>
+                  <div className="text-lg font-black text-[#00364e] mt-0.5">
+                    {loading ? '...' : stats.total.toLocaleString()}
+                  </div>
+                  <div className="text-[10px] text-slate-500">
+                    {scope === 'kharkiv' ? 'In Kharkiv Region' : 'All Ukraine'}
+                  </div>
                 </button>
+
                 <button
-                  onClick={() => setVizMode('points')}
-                  className={`flex items-center justify-center gap-1 py-1 rounded-lg text-xs font-semibold transition-all ${
-                    vizMode === 'points'
-                      ? 'bg-[#00364e] text-white shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900'
+                  onClick={() => {
+                    setSidebarTab('unosat');
+                    handlePresetClick('saltivka');
+                  }}
+                  className={`text-left p-2.5 rounded-xl border transition-all ${
+                    sidebarTab === 'unosat'
+                      ? 'bg-rose-50/60 border-rose-500 ring-1 ring-rose-500 shadow-sm'
+                      : 'bg-white/70 border-slate-200 hover:bg-white'
                   }`}
                 >
-                  <MapPin className="w-3 h-3 text-[#22c55e]" />
-                  <span>All Points</span>
-                </button>
-                <button
-                  onClick={() => setVizMode('heatmap')}
-                  className={`flex items-center justify-center gap-1 py-1 rounded-lg text-xs font-semibold transition-all ${
-                    vizMode === 'heatmap'
-                      ? 'bg-[#00364e] text-white shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <Flame className="w-3 h-3 text-amber-400" />
-                  <span>Heatmap</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-rose-700">
+                      UNOSAT Buildings
+                    </span>
+                    <span className="w-2 h-2 rounded-full bg-rose-500 ring-1 ring-black" />
+                  </div>
+                  <div className="text-lg font-black text-rose-700 mt-0.5">
+                    {filteredUnosatGeoJSON.features.length}
+                  </div>
+                  <div className="text-[10px] text-slate-500">
+                    Click to inspect Saltivka
+                  </div>
                 </button>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 mb-1">
-                  Scope
-                </label>
-                <select
-                  value={scope}
-                  onChange={(e) => setScope(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-800 focus:outline-none focus:border-[#00364e]"
-                >
-                  <option value="kharkiv">Kharkiv Focus (789)</option>
-                  <option value="all">All Ukraine (2,512)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 mb-1">
-                  Incident Year
-                </label>
-                <select
-                  value={selectedYear}
-                  onChange={(e) => setSelectedYear(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-800 focus:outline-none focus:border-[#00364e]"
-                >
-                  <option value="ALL">All Years (2022–2025)</option>
-                  <option value="2022">2022</option>
-                  <option value="2023">2023</option>
-                  <option value="2024">2024</option>
-                  <option value="2025">2025</option>
-                </select>
-              </div>
+            {/* Interactive Tab Switcher inside Sidebar */}
+            <div className="grid grid-cols-2 bg-slate-100 p-1 mx-3 mt-2.5 rounded-xl border border-slate-200 text-xs font-bold">
+              <button
+                onClick={() => setSidebarTab('incidents')}
+                className={`py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                  sidebarTab === 'incidents'
+                    ? 'bg-[#00364e] text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <CircleDot className="w-3.5 h-3.5 text-[#22c55e]" />
+                <span>Civilian Sectors</span>
+              </button>
+              <button
+                onClick={() => setSidebarTab('unosat')}
+                className={`py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                  sidebarTab === 'unosat'
+                    ? 'bg-[#00364e] text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Building2 className="w-3.5 h-3.5 text-rose-400" />
+                <span>UNOSAT Grades</span>
+              </button>
             </div>
 
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search Saltivka, hospital, bridge, school..."
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-8 pr-7 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#00364e]"
-              />
-              {searchQuery && (
+            {/* TAB 1: BELLINGCAT CIVILIAN INCIDENTS & SECTORS */}
+            {sidebarTab === 'incidents' ? (
+              <>
+                <div className="p-3 border-b border-slate-100 space-y-2.5">
+                  <div className="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-xl">
+                    <button
+                      onClick={() => setVizMode('clusters')}
+                      className={`flex items-center justify-center gap-1 py-1 rounded-lg text-[11px] font-semibold transition-all ${
+                        vizMode === 'clusters'
+                          ? 'bg-white text-[#00364e] shadow-sm'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <CircleDot className="w-3 h-3 text-[#16a34a]" />
+                      <span>Clusters</span>
+                    </button>
+                    <button
+                      onClick={() => setVizMode('points')}
+                      className={`flex items-center justify-center gap-1 py-1 rounded-lg text-[11px] font-semibold transition-all ${
+                        vizMode === 'points'
+                          ? 'bg-white text-[#00364e] shadow-sm'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <MapPin className="w-3 h-3 text-[#0284c7]" />
+                      <span>All Points</span>
+                    </button>
+                    <button
+                      onClick={() => setVizMode('heatmap')}
+                      className={`flex items-center justify-center gap-1 py-1 rounded-lg text-[11px] font-semibold transition-all ${
+                        vizMode === 'heatmap'
+                          ? 'bg-white text-rose-600 shadow-sm'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <Flame className="w-3 h-3 text-amber-500" />
+                      <span>Heatmap</span>
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 mb-0.5">
+                        Study Area
+                      </label>
+                      <select
+                        value={scope}
+                        onChange={(e) => setScope(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-medium text-slate-800 focus:outline-none focus:border-[#00364e]"
+                      >
+                        <option value="kharkiv">Kharkiv Region (789)</option>
+                        <option value="all">All Ukraine (2,512)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 mb-0.5">
+                        Incident Year
+                      </label>
+                      <select
+                        value={selectedYear}
+                        onChange={(e) => setSelectedYear(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-medium text-slate-800 focus:outline-none focus:border-[#00364e]"
+                      >
+                        <option value="ALL">All Years (2022–25)</option>
+                        <option value="2022">2022</option>
+                        <option value="2023">2023</option>
+                        <option value="2024">2024</option>
+                        <option value="2025">2025</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="relative">
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Filter by keyword (hospital, school, Saltivka)..."
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-8 pr-7 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#00364e]"
+                    />
+                    {searchQuery && (
+                      <button
+                        onClick={() => setSearchQuery('')}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Sector List */}
+                <div className="flex-1 overflow-y-auto p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      Click Sector to Filter Map
+                    </span>
+                    {(selectedSector !== 'ALL' || selectedYear !== 'ALL' || searchQuery) && (
+                      <button
+                        onClick={() => {
+                          setSelectedSector('ALL');
+                          setSelectedYear('ALL');
+                          setSearchQuery('');
+                        }}
+                        className="flex items-center gap-1 text-[10px] font-bold text-[#16a34a] hover:underline"
+                      >
+                        <RotateCcw className="w-2.5 h-2.5" />
+                        <span>Reset</span>
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    {stats.sortedSectors.map(([sec, count]) => {
+                      const cfg = SECTOR_CONFIG[sec] || SECTOR_CONFIG['Unclassified Civilian'];
+                      const pct = stats.total > 0 ? Math.round((count / stats.total) * 100) : 0;
+                      const isSelected = selectedSector === sec;
+
+                      return (
+                        <button
+                          key={sec}
+                          onClick={() => setSelectedSector(isSelected ? 'ALL' : sec)}
+                          className={`w-full text-left p-2 rounded-xl border transition-all ${
+                            isSelected
+                              ? 'bg-[#00364e]/5 border-[#00364e] ring-1 ring-[#00364e]'
+                              : 'bg-white hover:bg-slate-50 border-slate-100'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between text-xs mb-1">
+                            <span className="flex items-center gap-2 font-semibold text-slate-700 truncate">
+                              <span
+                                className="w-2.5 h-2.5 rounded-full shrink-0 border border-white shadow-sm"
+                                style={{ backgroundColor: cfg.color }}
+                              />
+                              <span className="truncate text-[11px]">{cfg.label}</span>
+                            </span>
+                            <span className="text-[10px] font-bold text-slate-500 shrink-0 ml-2">
+                              {count} ({pct}%)
+                            </span>
+                          </div>
+                          <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
+                            <div
+                              className="h-full rounded-full transition-all duration-300"
+                              style={{
+                                width: `${Math.max(3, pct)}%`,
+                                backgroundColor: cfg.color
+                              }}
+                            />
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
+            ) : (
+              /* TAB 2: UNOSAT BUILDING-LEVEL DAMAGE GRADES (Interactive Filter) */
+              <div className="flex-1 overflow-y-auto p-3.5 space-y-3">
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                  <div className="text-xs font-bold text-[#00364e] mb-1">
+                    UNOSAT Comprehensive Damage Assessment
+                  </div>
+                  <p className="text-[11px] text-slate-600 leading-relaxed mb-2">
+                    520 structure locations in Northern Kharkiv & Saltivka inspected via Very High Resolution (VHR) satellite imagery (`CE20220223UKR`).
+                  </p>
+                  <button
+                    onClick={() => handlePresetClick('saltivka')}
+                    className="w-full py-1.5 px-3 rounded-lg bg-[#00364e] hover:bg-[#004b6b] text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-all"
+                  >
+                    <Crosshair className="w-3.5 h-3.5 text-[#22c55e]" />
+                    <span>Fly to North Saltivka Buildings</span>
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Filter by Structural Damage Grade
+                  </span>
+                  {selectedUnosatGrade !== 'ALL' && (
+                    <button
+                      onClick={() => setSelectedUnosatGrade('ALL')}
+                      className="flex items-center gap-1 text-[10px] font-bold text-rose-600 hover:underline"
+                    >
+                      <RotateCcw className="w-2.5 h-2.5" />
+                      <span>Show All 520</span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  {Object.entries(UNOSAT_GRADES).map(([grade, info]) => {
+                    const isSelected = selectedUnosatGrade === grade;
+                    const pct = Math.round((info.count / 520) * 100);
+                    return (
+                      <button
+                        key={grade}
+                        onClick={() => setSelectedUnosatGrade(isSelected ? 'ALL' : grade)}
+                        className={`w-full text-left p-2.5 rounded-xl border transition-all ${
+                          isSelected
+                            ? 'bg-rose-50/70 border-rose-500 ring-1 ring-rose-500 shadow-sm'
+                            : 'bg-white hover:bg-slate-50 border-slate-200/80'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="flex items-center gap-2 font-bold text-xs text-slate-800">
+                            <span
+                              className="w-3 h-3 rounded-full border-2 border-slate-900 shrink-0"
+                              style={{ backgroundColor: info.color }}
+                            />
+                            <span>{info.label}</span>
+                          </span>
+                          <span className="text-xs font-black text-slate-800">
+                            {info.count} <span className="text-[10px] font-normal text-slate-500">({pct}%)</span>
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-500 pl-5 mb-1.5">{info.desc}</p>
+                        <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full"
+                            style={{ width: `${pct}%`, backgroundColor: info.color }}
+                          />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </aside>
+        )}
+
+        {/* ==================================================================
+            3. RIGHT COLUMN: MAP CANVAS (Top) + DOCKED TIMELINE BAR (Bottom)
+           ================================================================== */}
+        <div className="flex-1 flex flex-col h-full overflow-hidden relative">
+          {/* MAP CANVAS CONTAINER */}
+          <div className="flex-1 relative w-full overflow-hidden">
+            <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" />
+
+            {/* Live Hover Tooltip (Follows cursor cleanly) */}
+            {hoverInfo && (
+              <div
+                className="pointer-events-none absolute z-30 bg-[#002233]/95 text-white px-2.5 py-1.5 rounded-lg shadow-xl border border-white/15 text-[11px] max-w-xs"
+                style={{
+                  left: Math.min(hoverInfo.x + 14, window.innerWidth - 260),
+                  top: Math.max(hoverInfo.y - 36, 10)
+                }}
+              >
+                <div className="flex items-center gap-1.5 font-bold">
+                  <span
+                    className="w-2 h-2 rounded-full shrink-0"
+                    style={{ backgroundColor: hoverInfo.color }}
+                  />
+                  <span>{hoverInfo.isUnosat ? `UNOSAT: ${hoverInfo.title}` : hoverInfo.title}</span>
+                </div>
+                <div className="text-[10px] text-slate-300 truncate">{hoverInfo.subtitle}</div>
+              </div>
+            )}
+
+            {/* SELECTED FEATURE INSPECTOR CARD — Anchored TOP-RIGHT of map canvas (Never hits Legend or Timeline!) */}
+            {selectedEvent && (
+              <div className="absolute top-3 right-3 z-20 w-80 bg-white/95 backdrop-blur-md border border-slate-200 shadow-2xl rounded-2xl p-4">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  {selectedEvent.dataset_source === 'unosat' ? (
+                    <span
+                      className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold text-white shadow-sm"
+                      style={{ backgroundColor: selectedEvent.damage_color || '#e11d48' }}
+                    >
+                      <Building2 className="w-3 h-3" />
+                      <span>UNOSAT: {selectedEvent.damage_grade}</span>
+                    </span>
+                  ) : (
+                    <span
+                      className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold text-white shadow-sm"
+                      style={{
+                        backgroundColor:
+                          SECTOR_CONFIG[selectedEvent.primary_sector]?.color || '#0284c7'
+                      }}
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                      <span>{SECTOR_CONFIG[selectedEvent.primary_sector]?.label || selectedEvent.primary_sector}</span>
+                    </span>
+                  )}
+                  <button
+                    onClick={() => setSelectedEvent(null)}
+                    className="text-slate-400 hover:text-slate-700 p-0.5"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <h3 className="font-bold text-slate-900 text-sm mb-1">
+                  {selectedEvent.dataset_source === 'unosat'
+                    ? `Assessed Structure ${selectedEvent.id}`
+                    : (selectedEvent.location || 'Kharkiv Region')}
+                </h3>
+
+                <div className="flex items-center gap-2 text-xs text-slate-500 mb-2">
+                  <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                  <span>{selectedEvent.assessment_date || selectedEvent.date}</span>
+                  <span>•</span>
+                  <span className="font-mono text-[10px] text-slate-600">
+                    {selectedEvent.dataset_source === 'unosat'
+                      ? `Confidence: ${selectedEvent.confidence}`
+                      : `ID: ${selectedEvent.id}`}
+                  </span>
+                </div>
+
+                <p className="text-xs text-slate-700 leading-relaxed bg-slate-50 p-2.5 rounded-xl border border-slate-100 mb-3">
+                  {selectedEvent.dataset_source === 'unosat'
+                    ? (selectedEvent.damage_description || 'High-resolution satellite imagery verified structural building damage.')
+                    : (selectedEvent.description || 'Verified civilian infrastructure damage incident.')}
+                </p>
+
+                <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
+                  <button
+                    onClick={zoomToSelectedFeature}
+                    className="flex items-center gap-1 text-[11px] font-bold text-[#00364e] hover:text-[#16a34a] bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-lg transition-colors"
+                  >
+                    <Crosshair className="w-3 h-3" />
+                    <span>Zoom Rooftop (17x)</span>
+                  </button>
+
+                  {selectedEvent.dataset_source === 'unosat' ? (
+                    <span className="text-[10px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                      UNOSAT VHR
+                    </span>
+                  ) : (
+                    selectedEvent.source_url && (
+                      <a
+                        href={selectedEvent.source_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-[#0284c7] hover:underline"
+                      >
+                        <span>Evidence</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* COMPACT LEGEND — Anchored BOTTOM-LEFT of map canvas (Never collides with Inspector or Timeline!) */}
+            <div className="absolute bottom-3 left-3 z-20">
+              {legendOpen ? (
+                <div className="bg-white/95 backdrop-blur-md border border-slate-200/90 shadow-xl rounded-2xl p-3 w-64">
+                  <div className="flex items-center justify-between pb-1.5 mb-2 border-b border-slate-100">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#00364e]">
+                      Map Symbol Guide
+                    </span>
+                    <button
+                      onClick={() => setLegendOpen(false)}
+                      className="text-slate-400 hover:text-slate-700 text-[10px] font-semibold"
+                    >
+                      Minimize
+                    </button>
+                  </div>
+
+                  {/* Symbol Disambiguation Row */}
+                  <div className="space-y-2 text-[11px]">
+                    <div className="flex items-center justify-between bg-slate-50 px-2 py-1.5 rounded-lg border border-slate-100">
+                      <span className="flex items-center gap-2 font-semibold text-slate-800">
+                        <span className="w-3 h-3 rounded-full bg-rose-500 border-2 border-slate-950 shrink-0" />
+                        <span>UNOSAT Building (Black Ring)</span>
+                      </span>
+                      <span className="text-[10px] font-bold text-rose-600">520</span>
+                    </div>
+
+                    <div className="flex items-center justify-between bg-slate-50 px-2 py-1.5 rounded-lg border border-slate-100">
+                      <span className="flex items-center gap-2 font-semibold text-slate-800">
+                        <span className="w-3 h-3 rounded-full bg-[#0284c7] border-2 border-white shadow shrink-0" />
+                        <span>Civilian Incident (White Ring)</span>
+                      </span>
+                      <span className="text-[10px] font-bold text-[#00364e]">{stats.total}</span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
                 <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  onClick={() => setLegendOpen(true)}
+                  className="bg-white/95 backdrop-blur-md border border-slate-200 shadow-lg rounded-xl px-3 py-1.5 text-xs font-semibold text-[#00364e] hover:bg-white flex items-center gap-1.5"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <Info className="w-3.5 h-3.5 text-[#16a34a]" />
+                  <span>Symbol Guide</span>
                 </button>
               )}
             </div>
           </div>
 
-          {/* Interactive Sector Breakdown */}
-          <div className="flex-1 overflow-y-auto p-3.5 space-y-3">
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  Impacted Civilian Sectors
-                </span>
-                {(selectedSector !== 'ALL' || selectedYear !== 'ALL' || searchQuery || scope !== 'kharkiv') && (
-                  <button
-                    onClick={() => {
-                      setSelectedSector('ALL');
-                      setSelectedYear('ALL');
-                      setSearchQuery('');
-                      setScope('kharkiv');
-                    }}
-                    className="flex items-center gap-1 text-[10px] font-bold text-[#16a34a] hover:text-[#15803d]"
-                  >
-                    <RotateCcw className="w-2.5 h-2.5" />
-                    <span>Reset</span>
-                  </button>
-                )}
-              </div>
+          {/* ================================================================
+              4. DOCKED BOTTOM TIMELINE BAR (Sits cleanly below map canvas!)
+             ================================================================ */}
+          {timelineOpen ? (
+            <div className="h-24 shrink-0 bg-[#002233] text-white border-t border-[#004b6b] px-4 py-2 flex flex-col justify-between z-20">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5">
+                  <span className="text-xs font-semibold text-slate-200">
+                    Temporal Distribution (<strong className="text-[#4ade80]">{stats.total.toLocaleString()}</strong> incidents)
+                  </span>
+                  <span className="hidden sm:inline-block text-[10px] font-bold text-slate-300 bg-white/10 px-2 py-0.5 rounded">
+                    FEB 2022 – SEP 2025
+                  </span>
+                </div>
 
-              <div className="space-y-1">
-                {stats.sortedSectors.map(([sec, count]) => {
-                  const cfg = SECTOR_CONFIG[sec] || SECTOR_CONFIG['Unclassified Civilian'];
-                  const pct = stats.total > 0 ? Math.round((count / stats.total) * 100) : 0;
-                  const isSelected = selectedSector === sec;
-
-                  return (
-                    <button
-                      key={sec}
-                      onClick={() => setSelectedSector(isSelected ? 'ALL' : sec)}
-                      className={`w-full text-left p-2 rounded-xl border transition-all ${
-                        isSelected
-                          ? 'bg-[#00364e]/5 border-[#00364e] shadow-sm ring-1 ring-[#00364e]'
-                          : 'bg-white hover:bg-slate-50 border-slate-100'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between text-xs mb-1">
-                        <span className="flex items-center gap-2 font-semibold text-slate-700 truncate">
-                          <span
-                            className="w-2.5 h-2.5 rounded-full shrink-0"
-                            style={{ backgroundColor: cfg.color }}
-                          />
-                          <span className="truncate text-[11px]">{cfg.label}</span>
-                        </span>
-                        <span className="text-[10px] font-bold text-slate-500 shrink-0 ml-2">
-                          {count} ({pct}%)
-                        </span>
-                      </div>
-                      <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full rounded-full transition-all duration-300"
-                          style={{
-                            width: `${Math.max(3, pct)}%`,
-                            backgroundColor: cfg.color
-                          }}
-                        />
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Drawer Collapse Button */}
-        <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="self-start mt-3.5 ml-1.5 bg-[#002b3d]/95 backdrop-blur-md border border-[#004b6b] text-white shadow-xl rounded-xl p-2 hover:bg-[#00364e] transition-all"
-          title={sidebarOpen ? 'Hide Drawer' : 'Show Drawer'}
-        >
-          {sidebarOpen ? <ChevronLeft className="w-4 h-4 text-[#22c55e]" /> : <ChevronRight className="w-4 h-4 text-[#22c55e]" />}
-        </button>
-      </aside>
-
-      {/* Selected Incident Inspector Modal Card */}
-      {selectedEvent && (
-        <div className="absolute bottom-20 right-16 z-30 w-84 bg-white/95 backdrop-blur-md border border-slate-200 shadow-2xl rounded-2xl p-4 animate-in fade-in slide-in-from-bottom-2">
-          <div className="flex items-start justify-between gap-2 mb-2">
-            {selectedEvent.dataset_source === 'unosat' ? (
-              <span
-                className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold text-white shadow-sm"
-                style={{ backgroundColor: selectedEvent.damage_color || '#e11d48' }}
-              >
-                <Building2 className="w-3 h-3" />
-                <span>UNOSAT: {selectedEvent.damage_grade}</span>
-              </span>
-            ) : (
-              <span
-                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold text-white shadow-sm"
-                style={{
-                  backgroundColor:
-                    SECTOR_CONFIG[selectedEvent.primary_sector]?.color || '#0284c7'
-                }}
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-white" />
-                <span>{SECTOR_CONFIG[selectedEvent.primary_sector]?.label || selectedEvent.primary_sector}</span>
-              </span>
-            )}
-            <button
-              onClick={() => setSelectedEvent(null)}
-              className="text-slate-400 hover:text-slate-700 p-0.5"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-
-          <h3 className="font-bold text-slate-900 text-sm mb-1">
-            {selectedEvent.dataset_source === 'unosat' ? `Assessed Structure ${selectedEvent.id}` : (selectedEvent.location || 'Kharkiv Region')}
-          </h3>
-
-          <div className="flex items-center gap-2 text-xs text-slate-500 mb-2">
-            <Calendar className="w-3.5 h-3.5 text-slate-400" />
-            <span>{selectedEvent.assessment_date || selectedEvent.date}</span>
-            <span>•</span>
-            <span className="font-mono text-[10px] text-slate-600">
-              {selectedEvent.dataset_source === 'unosat' ? `Confidence: ${selectedEvent.confidence}` : `ID: ${selectedEvent.id}`}
-            </span>
-          </div>
-
-          <p className="text-xs text-slate-700 leading-relaxed bg-slate-50 p-2.5 rounded-xl border border-slate-100 mb-3">
-            {selectedEvent.dataset_source === 'unosat'
-              ? (selectedEvent.damage_description || 'High-resolution satellite imagery verified structural building damage.')
-              : (selectedEvent.description || 'Verified civilian infrastructure damage incident.')}
-          </p>
-
-          <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-100">
-            <span>
-              Coords: {selectedEvent.coordinates[1].toFixed(4)}, {selectedEvent.coordinates[0].toFixed(4)}
-            </span>
-            {selectedEvent.dataset_source === 'unosat' ? (
-              <span className="text-[10px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
-                UNOSAT CE20220223UKR
-              </span>
-            ) : (
-              selectedEvent.source_url && (
-                <a
-                  href={selectedEvent.source_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 font-bold text-[#00364e] hover:text-[#16a34a]"
-                >
-                  <span>Verification Source</span>
-                  <ExternalLink className="w-3 h-3" />
-                </a>
-              )
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Floating Collapsible Dual Legend (Disambiguating Bellingcat vs UNOSAT) */}
-      <div className="absolute bottom-14 right-3.5 z-20">
-        {legendOpen ? (
-          <div className="bg-white/95 backdrop-blur-md border border-slate-200/90 shadow-xl rounded-2xl p-3.5 w-64 animate-in fade-in slide-in-from-bottom-2">
-            <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#00364e]">
-                Data Visual Disambiguation
-              </span>
-              <button
-                onClick={() => setLegendOpen(false)}
-                className="text-slate-400 hover:text-slate-600 text-[10px]"
-              >
-                Hide
-              </button>
-            </div>
-
-            {/* UNOSAT Buildings Legend */}
-            <div className="mb-3">
-              <div className="flex items-center gap-1.5 text-[11px] font-bold text-rose-800 mb-1.5">
-                <span className="w-2.5 h-2.5 rounded-sm bg-rose-500 border border-black" />
-                <span>UNOSAT Building Footprints (VHR)</span>
-              </div>
-              <div className="space-y-1 pl-4 text-[10px]">
-                {Object.entries(UNOSAT_GRADES).map(([grade, info]) => (
-                  <div key={grade} className="flex items-center justify-between text-slate-600">
-                    <span className="flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full border border-black" style={{ backgroundColor: info.color }} />
-                      <span>{info.label}</span>
-                    </span>
-                    <span className="font-bold text-slate-800">{info.count}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Bellingcat Incidents Legend */}
-            <div>
-              <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#00364e] mb-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#0284c7] border-2 border-white" />
-                <span>Civilian Incident Reports</span>
-              </div>
-              <div className="grid grid-cols-2 gap-x-2 gap-y-1 pl-4 text-[10px] text-slate-600">
-                <span className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-rose-600" /> Residential
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-amber-500" /> Education
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-red-600" /> Healthcare
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-purple-600" /> Transport
-                </span>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <button
-            onClick={() => setLegendOpen(true)}
-            className="bg-white/95 backdrop-blur-md border border-slate-200 shadow-lg rounded-2xl px-3 py-1.5 text-xs font-semibold text-slate-700 hover:text-[#00364e] flex items-center gap-1.5"
-          >
-            <Info className="w-3.5 h-3.5 text-[#16a34a]" />
-            <span>Map Legend</span>
-          </button>
-        )}
-      </div>
-
-      {/* Bottom Collapsible Temporal Bar (Bellingcat Style) */}
-      <div className="absolute bottom-3 left-3.5 right-3.5 z-20">
-        {timelineOpen ? (
-          <div className="bg-[#002b3d]/95 backdrop-blur-md text-white border border-[#004b6b] shadow-2xl rounded-2xl px-5 py-3 animate-in fade-in slide-in-from-bottom-2">
-            <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-semibold text-slate-200">
-                  Showing <strong className="text-white">{stats.total.toLocaleString()}</strong> verified civilian incidents
-                </span>
-                <span className="text-[10px] font-bold tracking-wide text-[#4ade80] bg-[#16a34a]/20 border border-[#16a34a]/40 px-2 py-0.5 rounded-md">
-                  FEB 2022 – SEP 2025
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1.5">
                   {['ALL', '2022', '2023', '2024', '2025'].map((yr) => (
                     <button
                       key={yr}
                       onClick={() => setSelectedYear(yr)}
-                      className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition-all ${
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all ${
                         selectedYear === yr
-                          ? 'bg-[#16a34a] text-white shadow-sm'
+                          ? 'bg-[#16a34a] text-white'
                           : 'text-slate-300 hover:text-white hover:bg-white/10'
                       }`}
                     >
-                      {yr === 'ALL' ? 'All' : yr}
+                      {yr === 'ALL' ? 'All Years' : yr}
                     </button>
                   ))}
-                </div>
 
-                <button
-                  onClick={() => setTimelineOpen(false)}
-                  className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 ml-2"
-                  title="Minimize Timeline"
-                >
-                  <ChevronDown className="w-4 h-4" />
-                </button>
+                  <button
+                    onClick={() => setTimelineOpen(false)}
+                    className="ml-2 text-slate-400 hover:text-white p-1 rounded hover:bg-white/10"
+                    title="Collapse Timeline Bar"
+                  >
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Monthly Histogram Bars */}
+              <div className="flex items-end gap-1 h-11 pt-1">
+                {stats.monthsList.map((item) => {
+                  const heightPct = Math.max(8, Math.round((item.count / maxMonthCount) * 100));
+                  const isYearActive = selectedYear === 'ALL' || selectedYear === item.year;
+                  return (
+                    <div
+                      key={item.ym}
+                      onClick={() => setSelectedYear(selectedYear === item.year ? 'ALL' : item.year)}
+                      title={`${item.ym}: ${item.count} verified civilian incidents`}
+                      className="flex-1 h-full flex items-end cursor-pointer group"
+                    >
+                      <div
+                        className={`w-full rounded-t-sm transition-all ${
+                          isYearActive
+                            ? 'bg-[#22c55e] group-hover:bg-[#4ade80]'
+                            : 'bg-slate-600 opacity-35 group-hover:opacity-75'
+                        }`}
+                        style={{ height: `${heightPct}%` }}
+                      />
+                    </div>
+                  );
+                })}
               </div>
             </div>
-
-            {/* Monthly Histogram Bars */}
-            <div className="flex items-end gap-1 h-9 pt-1">
-              {stats.monthsList.map((item) => {
-                const heightPct = Math.max(8, Math.round((item.count / maxMonthCount) * 100));
-                const isYearActive = selectedYear === 'ALL' || selectedYear === item.year;
-                return (
-                  <div
-                    key={item.ym}
-                    onClick={() => setSelectedYear(selectedYear === item.year ? 'ALL' : item.year)}
-                    title={`${item.ym}: ${item.count} verified incidents`}
-                    className="flex-1 h-full flex items-end cursor-pointer group"
-                  >
-                    <div
-                      className={`w-full rounded-t-sm transition-all ${
-                        isYearActive
-                          ? 'bg-[#22c55e] group-hover:bg-[#4ade80]'
-                          : 'bg-slate-600 opacity-40 group-hover:opacity-80'
-                      }`}
-                      style={{ height: `${heightPct}%` }}
-                    />
-                  </div>
-                );
-              })}
+          ) : (
+            <div className="h-8 shrink-0 bg-[#002233] text-white border-t border-[#004b6b] px-4 flex items-center justify-between text-xs z-20">
+              <span className="text-[11px] text-slate-300">
+                Timeline Collapsed • Showing <strong className="text-[#4ade80]">{stats.total}</strong> Civilian Incidents & <strong className="text-rose-400">{filteredUnosatGeoJSON.features.length}</strong> UNOSAT Buildings
+              </span>
+              <button
+                onClick={() => setTimelineOpen(true)}
+                className="flex items-center gap-1 text-[11px] font-semibold text-[#4ade80] hover:underline"
+              >
+                <Calendar className="w-3 h-3" />
+                <span>Expand Timeline</span>
+                <ChevronUp className="w-3.5 h-3.5" />
+              </button>
             </div>
-          </div>
-        ) : (
-          <div className="flex items-center justify-between pointer-events-none">
-            <button
-              onClick={() => setTimelineOpen(true)}
-              className="pointer-events-auto bg-[#002b3d]/95 backdrop-blur-md text-white border border-[#004b6b] hover:border-[#16a34a] shadow-xl rounded-2xl px-3.5 py-1.5 text-xs font-semibold flex items-center gap-2 hover:bg-[#00364e] transition-all"
-            >
-              <Calendar className="w-3.5 h-3.5 text-[#22c55e]" />
-              <span>Timeline (2022–2025)</span>
-              <ChevronUp className="w-3.5 h-3.5 text-[#22c55e]" />
-            </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
