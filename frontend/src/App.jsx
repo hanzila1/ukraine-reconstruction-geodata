@@ -222,7 +222,31 @@ function createInitialStyle() {
     { id: 'layer-positron', type: 'raster', source: 'bm-positron', layout: { visibility: 'none' } },
     { id: 'layer-topo', type: 'raster', source: 'bm-topo', layout: { visibility: 'none' } },
 
-    // 2. ADMINISTRATIVE BOUNDARIES (Oblast, City Municipality, and 9 Urban Districts)
+    // 2. ADMINISTRATIVE BOUNDARIES (Ukraine National Border, Kharkiv Oblast, City Municipality, and 9 Urban Districts)
+    // 2.0 Ukraine Whole-Country National Boundary (Outline Only — No Fill)
+    {
+      id: 'country-outline-glow',
+      type: 'line',
+      source: 'main-boundaries',
+      filter: ['==', ['get', 'boundary_type'], 'country'],
+      paint: {
+        'line-color': '#001f2e',
+        'line-width': 5.5,
+        'line-opacity': 0.75
+      }
+    },
+    {
+      id: 'country-outline',
+      type: 'line',
+      source: 'main-boundaries',
+      filter: ['==', ['get', 'boundary_type'], 'country'],
+      paint: {
+        'line-color': '#38bdf8',
+        'line-width': 2.4,
+        'line-opacity': 0.95
+      }
+    },
+
     // 2a. Kharkiv Oblast Subtle Fill & Outer Dashed Perimeter
     {
       id: 'oblast-fill',
@@ -948,6 +972,8 @@ export default function App() {
       const showOutlines = boundaryMode === 'choropleth' || boundaryMode === 'outlines';
       const showFill = boundaryMode === 'choropleth';
 
+      setVis('country-outline-glow', showOutlines);
+      setVis('country-outline', showOutlines);
       setVis('oblast-fill', showFill);
       setVis('oblast-outline-glow', showOutlines);
       setVis('oblast-outline', showOutlines);

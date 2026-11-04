@@ -110,6 +110,22 @@ def main():
 
     main_features = []
 
+    print("0. Fetching Ukraine Whole-Country National Boundary...")
+    ukr_feat = fetch_nominatim_geojson("Ukraine", threshold=0.002)
+    if ukr_feat:
+        bbox, center = get_bbox_and_center(ukr_feat["geometry"])
+        ukr_feat["properties"] = {
+            "id": "ukraine_country",
+            "name_en": "Ukraine",
+            "name_uk": "Україна",
+            "boundary_type": "country",
+            "bbox": bbox,
+            "center": center,
+            "bellingcat_count": len(bellingcat_feats),
+        }
+        main_features.append(ukr_feat)
+
+    time.sleep(0.5)
     print("1. Fetching Kharkiv Oblast main perimeter...")
     oblast_feat = fetch_nominatim_geojson("Kharkiv Oblast, Ukraine", threshold=0.001)
     if oblast_feat:
@@ -245,8 +261,8 @@ def main():
 
     # 4. Strictly tag every Bellingcat & UNOSAT feature using exact Point-in-Polygon (PIP)
     #    against Kharkiv Oblast, Kharkiv City, and the 9 Urban Districts (Raions)
-    oblast_geom = main_features[0]["geometry"] if main_features else None
-    city_geom = main_features[1]["geometry"] if len(main_features) > 1 else None
+    oblast_geom = next((f["geometry"] for f in main_features if f["properties"].get("boundary_type") == "oblast"), None)
+    city_geom = next((f["geometry"] for f in main_features if f["properties"].get("boundary_type") == "city"), None)
 
     strict_kharkiv_bellingcat = []
     for bf in bellingcat_feats:
