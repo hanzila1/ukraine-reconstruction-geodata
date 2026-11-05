@@ -29,3 +29,4 @@ elif page == "Analysis & Monitoring":
 elif page == "Compliance & Reports":
     st.subheader("Sustainability & Compliance Checks")
     st.write("Automated compliance verification and audit report generation.")
+
